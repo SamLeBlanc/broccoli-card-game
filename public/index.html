@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Table</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Join screen -->
+<div id="join-screen">
+  <div class="join-box">
+    <h1>🃏 Card Table</h1>
+    <label>Your name</label>
+    <input id="player-name" type="text" placeholder="e.g. Sam" maxlength="20" />
+    <label>Room code <span class="sublabel">(share with friends)</span></label>
+    <input id="room-id" type="text" placeholder="e.g. mygame" maxlength="20" />
+    <label>Number of players</label>
+    <div class="player-count-row">
+      <button class="count-btn active" data-count="2">2</button>
+      <button class="count-btn" data-count="3">3</button>
+      <button class="count-btn" data-count="4">4</button>
+    </div>
+    <button id="join-btn">Join Table</button>
+    <button id="btn-debug">🐛 Debug — 4 players, auto-deal</button>
+  </div>
+</div>
+
+<!-- Game screen -->
+<div id="game-screen" class="hidden">
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <img id="title-img" src="/broccoli.png" alt="Game logo" />
+    <span id="title">Broccoli</span>
+    <span id="player-label"></span>
+    <span id="room-label"></span>
+    <div id="deck-controls">
+      <button id="btn-shuffle">Shuffle</button>
+      <button id="btn-draw">Draw to Hand</button>
+      <button id="btn-flip-table">Draw Face Up</button>
+      <button id="btn-deal">Deal</button>
+      <button id="btn-collect">Restack</button>
+      <button id="btn-recall">Recall to Hand</button>
+      <button id="btn-score" class="hidden">Score</button>
+      <button id="btn-cheat">Cheat</button>
+      <button id="btn-deck-count">Deck: 208</button>
+    </div>
+  </div>
+
+  <!-- Cheat panel -->
+  <div id="cheat-panel" class="hidden">
+    <div id="cheat-header">
+      <span id="cheat-title">Valid sets in hand</span>
+      <button id="cheat-close">✕</button>
+    </div>
+    <div id="cheat-list"></div>
+  </div>
+
+  <!-- Deck browser panel -->
+  <div id="deck-panel" class="hidden">
+    <div id="deck-panel-header">
+      <div id="deck-panel-tabs">
+        <button class="deck-tab active" data-tab="remaining">Remaining (<span id="deck-remaining-count">0</span>)</button>
+        <button class="deck-tab" data-tab="all">All Cards (350)</button>
+      </div>
+      <button id="deck-panel-close">✕</button>
+    </div>
+    <div id="deck-panel-controls">
+      <input id="deck-search" type="text" placeholder="e.g. 13 red spade…" autocomplete="off" />
+      <div id="deck-group-btns">
+        <span class="deck-group-label">Group by</span>
+        <button class="deck-group-btn active" data-group="color">Color</button>
+        <button class="deck-group-btn" data-group="suit">Suit</button>
+        <button class="deck-group-btn" data-group="rank">Number</button>
+        <label id="deck-separate-jokers-label">
+          <input type="checkbox" id="deck-separate-jokers" checked />
+          Separate jokers
+        </label>
+      </div>
+    </div>
+    <div id="deck-panel-content"></div>
+  </div>
+
+  <!-- Table area: left hand | center | right hand -->
+  <div id="table-row">
+
+    <!-- Left opponent hand (shown when 3–4 players) -->
+    <div id="opp-left" class="opp-side hidden">
+      <div class="opp-name" id="opp-left-name"></div>
+      <div class="opp-cards" id="opp-left-cards"></div>
+    </div>
+
+    <!-- Center: top opponent + table + your hand -->
+    <div id="center-col">
+
+      <!-- Top opponent hand -->
+      <div id="opp-top" class="opp-top hidden">
+        <div class="opp-name" id="opp-top-name"></div>
+        <div class="opp-cards" id="opp-top-cards"></div>
+      </div>
+
+      <!-- The actual table surface -->
+      <div id="table">
+        <div id="deck-pile" title="Click to flip top card to table"></div>
+        <div id="select-box"></div>
+        <!-- Scored sets history — top-left of the grid, grows downward -->
+        <div id="scored-sets-panel"></div>
+        <!-- Discard pile — right side of table, cards stack here -->
+        <div id="discard-zone" title="Discard pile"></div>
+      </div>
+
+      <!-- Your hand -->
+      <div id="hand-area">
+        <div id="hand-label">
+          Your Hand <span id="hand-count">(0)</span>
+          <button id="btn-isolate-left"  class="hidden">◀ Isolate</button>
+          <button id="btn-isolate-right" class="hidden">Isolate ▶</button>
+          <button id="btn-deselect-hand" class="hidden">Deselect</button>
+          <button id="btn-discard-hand"  class="hidden">Discard</button>
+          <button id="btn-play-selected" class="hidden">Play</button>
+          <span id="hand-score-preview" class="hidden"></span>
+          <div id="sort-btns">
+            <span class="sort-label">Sort by</span>
+            <button class="sort-btn" data-sort="rank">Number</button>
+            <button class="sort-btn" data-sort="color">Color</button>
+            <button class="sort-btn" data-sort="suit">Suit</button>
+          </div>
+        </div>
+        <div id="hand-cards"></div>
+      </div>
+
+    </div><!-- /center-col -->
+
+    <!-- Right opponent hand (shown when 4 players) -->
+    <div id="opp-right" class="opp-side hidden">
+      <div class="opp-name" id="opp-right-name"></div>
+      <div class="opp-cards" id="opp-right-cards"></div>
+    </div>
+
+  </div><!-- /table-row -->
+
+  <!-- Deal dialog -->
+  <div id="deal-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Deal cards</h2>
+      <p id="deal-desc">Deal to all players</p>
+      <div class="deal-row">
+        <button class="deal-adj" id="deal-minus">−</button>
+        <span id="deal-display">5</span>
+        <button class="deal-adj" id="deal-plus">+</button>
+      </div>
+      <p class="deal-sub" id="deal-sub">cards each</p>
+      <div class="modal-actions">
+        <button id="deal-cancel">Cancel</button>
+        <button id="deal-confirm" class="primary">Deal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score result overlay -->
+  <div id="score-result" class="score-result hidden"></div>
+
+  <!-- Chat (floating) -->
+  <div id="chat-panel">
+    <div id="chat-log"></div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Say something…" maxlength="120" />
+      <button id="chat-send">Send</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="/config.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="cards.js"></script>
+<script src="animation.js"></script>
+<script src="state.js"></script>
+<script src="grid.js"></script>
+<script src="scoring.js"></script>
+<script src="hand.js"></script>

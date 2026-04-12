@@ -1,0 +1,1018 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #1a6b35;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#title{
+    font-size: 2em;
+    font-weight: bold;
+}
+
+#title-img{
+    width: 45px;
+    height: 45px;
+}
+
+/* ── Join screen ─────────────────────────────────────────────────────────── */
+#join-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+.join-box {
+  background: #fff;
+  color: #222;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+.join-box h1 { font-size: 1.6rem; margin-bottom: 0.5rem; text-align: center; }
+.join-box label { font-size: 0.85rem; font-weight: 600; color: #555; margin-top: 0.5rem; }
+.sublabel { font-weight: 400; font-size: 0.82em; }
+.join-box input[type=text] {
+  border: 1.5px solid #ccc; border-radius: 6px;
+  padding: 0.5rem 0.75rem; font-size: 1rem; outline: none;
+}
+.join-box input[type=text]:focus { border-color: #2d5be3; }
+.player-count-row { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+.count-btn {
+  flex: 1; padding: 0.5rem; font-size: 1.1rem; font-weight: 700;
+  border: 2px solid #ccc; border-radius: 8px;
+  background: #f5f5f5; cursor: pointer; transition: all 0.1s;
+}
+.count-btn.active { border-color: #2d5be3; background: #2d5be3; color: #fff; }
+.count-btn:hover:not(.active) { border-color: #999; }
+#join-btn {
+  margin-top: 1rem; background: #2d5be3; color: #fff;
+  border: none; border-radius: 8px; padding: 0.65rem;
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+}
+#join-btn:hover { background: #1e44c4; }
+#btn-debug {
+  margin-top: 0.4rem; background: none; color: #888;
+  border: 1px dashed #ccc; border-radius: 8px; padding: 0.45rem;
+  font-size: 0.8rem; cursor: pointer;
+}
+#btn-debug:hover { border-color: #999; color: #555; background: #f7f7f7; }
+
+/* ── Game layout ─────────────────────────────────────────────────────────── */
+#game-screen { display: flex; flex-direction: column; height: 100vh; }
+.hidden { display: none !important; }
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+#topbar {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: rgba(0,0,0,0.3); padding: 0.4rem 0.75rem;
+  flex-shrink: 0; flex-wrap: wrap;
+}
+#room-label { font-weight: 700; font-size: 0.9rem; opacity: 0.8; }
+#deck-controls { display: flex; gap: 0.4rem; align-items: center;  }
+#deck-controls button {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+  color: #fff; border-radius: 6px; padding: 0.3rem 0.65rem;
+  font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;
+}
+#deck-controls button:hover { background: rgba(255,255,255,0.28); }
+#deal-count {
+  width: 38px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; border-radius: 4px; padding: 0.1rem 0.3rem;
+  font-size: 0.82rem; text-align: center;
+}
+#btn-deck-count {
+  font-size: 0.82rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+  border-radius: 5px;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+#btn-deck-count:hover { background: rgba(255,255,255,0.16); opacity: 1; }
+
+/* ── Table row: [left] [center] [right] ───────────────────────────────────── */
+#table-row {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── Side opponent panels (left / right) ─────────────────────────────────── */
+.opp-side {
+  width: 96px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  background: rgba(0,0,0,0.15);
+}
+.opp-side .opp-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.75;
+  text-align: center;
+  margin-bottom: 4px;
+}
+/* Side cards stacked vertically; each card rotated 90°, 50% overlap */
+.opp-side .opp-cards {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.opp-side .opp-card {
+  width: 56px;
+  height: 80px;
+  transform: rotate(90deg);
+  flex-shrink: 0;
+  margin: 0;
+}
+/* 50% overlap: each card after the first overlaps by half the card's layout height */
+.opp-side .opp-card + .opp-card {
+    margin-top: -53px;
+}
+
+/* ── Center column: top opp + table + your hand ──────────────────────────── */
+#center-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Top opponent hand ───────────────────────────────────────────────────── */
+.opp-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 8px 4px;
+  background: rgba(0,0,0,0.15);
+  gap: 4px;
+}
+.opp-top .opp-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.opp-top .opp-cards {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+/* Same card size as sides; 50% horizontal overlap */
+.opp-top .opp-card {
+  width: 56px;
+  height: 80px;
+  flex-shrink: 0;
+  margin: 0;
+}
+.opp-top .opp-card + .opp-card {
+  margin-left: -28px;
+}
+
+/* ── Opponent card-count bubble ──────────────────────────────────────────── */
+.opp-count-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 14px;
+  padding: 4px 11px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  letter-spacing: 0.02em;
+}
+
+/* ── Table surface ───────────────────────────────────────────────────────── */
+#table {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  min-height: 0;
+}
+
+/* Visible snap grid — 84×116px cells matching the 80×112 card footprint + 4px gutter */
+#table::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 84px 116px;
+  z-index: 0;
+}
+
+/* Score button that appears below qualifying grid groups */
+.grid-score-btn {
+  position: absolute;
+  transform: translateX(-50%);
+  background: #2a9d8f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.12s, transform 0.08s;
+  white-space: nowrap;
+}
+.grid-score-btn:hover  { background: #21867a; }
+.grid-score-btn:active { transform: translateX(-50%) scale(0.95); }
+
+/* ── Deck pile ───────────────────────────────────────────────────────────── */
+#deck-pile {
+  position: absolute;
+  /* left/top set dynamically by positionDeckPile() in grid.js → bottom-left grid cell */
+  left: 2px; top: 2px;   /* fallback until JS runs */
+  width: 80px; height: 112px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+#deck-pile:hover .pile-card { border-color: rgba(255,255,255,0.55); }
+.pile-card {
+  position: absolute; inset: 0;
+  border-radius: 8px;
+  background: repeating-linear-gradient(45deg, #1a3a6b, #1a3a6b 4px, #122d56 4px, #122d56 8px);
+  border: 2px solid rgba(255,255,255,0.25);
+  box-shadow: 1px 2px 6px rgba(0,0,0,0.4);
+  will-change: transform;
+}
+
+/* ── Cards (shared) ──────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.12);
+  overflow: hidden;
+  user-select: none;
+  font-family: system-ui, sans-serif;
+  /* default full size */
+  width: 80px; height: 112px;
+}
+.card-back {
+  position: absolute; inset: 4px; border-radius: 4px;
+  background: repeating-linear-gradient(45deg, #1a3a6b, #1a3a6b 4px, #122d56 4px, #122d56 8px);
+}
+.card-face {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; line-height: 1;
+}
+.c-face-rank { font-size: 2.2rem; font-weight: 800; }
+.c-face-suit { font-size: 2.6rem; font-family: 'Noto Serif SC', serif; }
+
+/* ── Table cards ─────────────────────────────────────────────────────────── */
+.table-card {
+  position: absolute;
+  cursor: grab;
+  box-shadow: 2px 4px 10px rgba(0,0,0,0.35);
+}
+.table-card:hover { box-shadow: 4px 6px 16px rgba(0,0,0,0.45); }
+.table-card.dragging { cursor: grabbing; box-shadow: 6px 10px 24px rgba(0,0,0,0.5); }
+
+/* Ghost card dragged from hand */
+.float-drag {
+  pointer-events: none; opacity: 0.92;
+  box-shadow: 4px 8px 24px rgba(0,0,0,0.5);
+  border-radius: 8px; transform: rotate(-3deg);
+}
+
+/* ── Your hand ───────────────────────────────────────────────────────────── */
+#hand-area {
+  background: rgba(0,0,0,0.25); padding: 0.5rem 0.75rem;
+  flex-shrink: 0; min-height: 100px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+#hand-area.drop-target {
+  background: rgba(255,255,255,0.12);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.4);
+}
+#hand-label {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.78rem; font-weight: 600; opacity: 0.85; margin-bottom: 0.4rem;     padding-bottom: 20px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+#sort-btns { display: flex; gap: 0.3rem; margin-left: auto;     align-items: center;
+}
+.sort-label{
+  margin: 0 5px;
+}
+.sort-btn {
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+  color: #fff; border-radius: 5px; padding: 0.2rem 0.55rem;
+  font-size: 0.74rem; cursor: pointer; font-weight: 500;
+  transition: background 0.12s;
+  text-transform: none; letter-spacing: 0;
+}
+.sort-btn:hover  { background: rgba(255,255,255,0.25); }
+.sort-btn.active { background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); font-weight: 700; }
+
+#hand-cards {
+  display: flex; gap: 8px; flex-wrap: nowrap;
+  padding-bottom: 4px; align-items: flex-end;
+}
+
+.hand-card {
+  flex-shrink: 0; cursor: grab;
+  /* margin transitions make the gap open/close smoothly */
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              margin-left 0.18s ease, margin-right 0.18s ease;
+  box-shadow: 1px 2px 6px rgba(0,0,0,0.3);
+}
+.hand-card:hover { transform: translateY(-10px); box-shadow: 2px 8px 16px rgba(0,0,0,0.4); }
+.hand-card.selected {
+  transform: translateY(-14px);
+  outline: 3px solid #ffdd00;
+  outline-offset: 2px;
+  box-shadow: 0 0 16px rgba(255,220,0,0.85), 2px 8px 16px rgba(0,0,0,0.4);
+}
+.hand-card.selected:hover { transform: translateY(-18px); }
+
+/* Source card fades in place while being dragged */
+.hand-ghost { opacity: 0.15; pointer-events: none; }
+.hand-ghost:hover { transform: none !important; }
+
+/* ── Isolated group box ───────────────────────────────────────────────────── */
+.isolate-box {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  background: rgba(80,200,255,0.08);
+  border: 1.5px solid rgba(80,200,255,0.5);
+  border-radius: 10px;
+  padding: 4px 7px 5px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px 1px rgba(80,200,255,0.18);
+}
+.isolate-box-cards {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.isolate-box-header {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 14px;
+}
+.isolate-box-close {
+  background: rgba(255,80,80,0.18);
+  border: 1px solid rgba(255,80,80,0.5);
+  color: rgba(255,150,150,0.9);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.isolate-box-close:hover { background: rgba(255,80,80,0.45); color: #fff; }
+/* Plain un-isolated "rest" section */
+.isolate-rest {
+  display: inline-flex;
+  gap: 6px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.card-small { width: 60px; height: 84px; }
+.card-small .c-face-rank { font-size: 2rem; }
+.card-small .c-face-suit { font-size: 2rem; }
+
+/* ── Chat ────────────────────────────────────────────────────────────────── */
+#chat-panel {
+  position: fixed; 
+  bottom: 150px;
+  right: 105px;
+  width: 240px;
+  background: rgba(0,0,0,0.5); border-radius: 10px;
+  display: flex; flex-direction: column; max-height: 180px; overflow: hidden;
+  font-size: 0.8rem;
+}
+#chat-log { flex: 1; overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 2px; }
+.chat-msg    { color: #fff; }
+.chat-system { color: rgba(255,255,255,0.5); font-style: italic; }
+#chat-input-row { display: flex; border-top: 1px solid rgba(255,255,255,0.15); }
+#chat-input {
+  flex: 1; background: transparent; border: none; color: #fff;
+  padding: 0.35rem 0.5rem; font-size: 0.8rem; outline: none;
+}
+#chat-input::placeholder { color: rgba(255,255,255,0.35); }
+#chat-send { background: none; border: none; color: rgba(255,255,255,0.6); padding: 0 0.5rem; cursor: pointer; font-size: 0.78rem; }
+#chat-send:hover { color: #fff; }
+
+/* ── Deal modal ──────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: #fff; color: #222;
+  border-radius: 14px; padding: 2rem 2.5rem;
+  width: 300px; text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.modal-box h2 { font-size: 1.3rem; font-weight: 700; }
+#deal-desc { font-size: 0.88rem; color: #555; margin: 0; }
+.deal-row {
+  display: flex; align-items: center; justify-content: center; gap: 1.2rem;
+  margin: 0.5rem 0;
+}
+.deal-adj {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 2px solid #2d5be3; background: none; color: #2d5be3;
+  font-size: 1.4rem; font-weight: 700; cursor: pointer; line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+.deal-adj:hover:not(:disabled) { background: #2d5be3; color: #fff; }
+.deal-adj:disabled { border-color: #ccc; color: #ccc; cursor: default; }
+#deal-display { font-size: 2.8rem; font-weight: 800; min-width: 60px; }
+.deal-sub { font-size: 0.82rem; color: #888; margin: 0; }
+.modal-actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+.modal-actions button {
+  flex: 1; padding: 0.6rem; border-radius: 8px;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  border: 2px solid #ddd; background: #f5f5f5; color: #444;
+  transition: background 0.1s;
+}
+.modal-actions button:hover { background: #e8e8e8; }
+.modal-actions button.primary {
+  background: #2d5be3; color: #fff; border-color: #2d5be3;
+}
+.modal-actions button.primary:hover { background: #1e44c4; }
+
+/* ── Context menu ────────────────────────────────────────────────────────── */
+.ctx-menu {
+  position: fixed; background: #fff; color: #222;
+  border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  overflow: hidden; z-index: 9999; min-width: 160px;
+}
+.ctx-menu button {
+  display: block; width: 100%; text-align: left; background: none;
+  border: none; padding: 0.55rem 1rem; font-size: 0.88rem; cursor: pointer;
+}
+.ctx-menu button:hover { background: #f0f0f0; }
+
+/* ── Selected card highlight ─────────────────────────────────────────────────── */
+.card.selected {
+  outline: 3px solid #ffdd00;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(255, 220, 0, 0.75), 2px 4px 10px rgba(0,0,0,0.35);
+}
+
+/* ── Box select rubber-band ──────────────────────────────────────────────────── */
+#select-box {
+  position: absolute;
+  display: none;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 8000;
+}
+
+/* ── Score result overlay ────────────────────────────────────────────────────── */
+.score-result {
+  /* Base styles — position/transform are set dynamically by showScoreResult() */
+  position: fixed;
+  background: rgba(15, 15, 15, 0.92);
+  color: #fff;
+  border-radius: 14px;
+  padding: 1rem 1.6rem;
+  z-index: 9000;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  min-width: 180px;
+  max-width: 340px;
+}
+.score-result.score-valid   { border: 3px solid #1e8c3a; }
+.score-result.score-invalid { border: 3px solid #d42b2b; }
+.score-title    { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+.score-natural  { font-size: 0.88rem; color: rgba(255,255,255,0.82); line-height: 1.5; margin-bottom: 0.4rem; }
+.score-points   { font-size: 2.2rem; font-weight: 800; color: #ffd700; }
+.score-traits   { font-size: 0.9rem; line-height: 1.75; text-align: left; }
+.trait-ok   { color: #5dde7f; }
+.trait-bad  { color: #ff6b6b; }
+.trait-wild { color: #bbbbbb; }
+
+/* ── Joker cards ─────────────────────────────────────────────────────────────── */
+/* No special border — distinguished by missing traits and grey (colorless) bg */
+.joker-card {
+  /* inherits .card border */
+}
+/* Colorless joker: solid grey background, white text */
+.joker-colorless {
+  background: #888 !important;
+  color: #fff !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+/* All-wild star joker: center the star, bigger */
+.joker-all-wild {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+.joker-star {
+  font-size: 2.4rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+/* ── Card arrange animation ──────────────────────────────────────────────────── */
+.table-card.arranging {
+  transition: left 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              top  0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Persistent score badge beneath a scored set ─────────────────────────────── */
+.score-label {
+  position: absolute;
+  transform: translate(-50%, 0);
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffd700;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 200;
+  letter-spacing: 0.03em;
+}
+
+/* ── Scored-sets history panel (top-left of the grid) ───────────────────────── */
+#scored-sets-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;   /* doesn't block card interaction */
+}
+
+.scored-set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 4px 8px 4px 4px;
+  backdrop-filter: blur(4px);
+  /* Slide-in animation */
+  transition: opacity 0.3s, transform 0.3s;
+  opacity: 1;
+  transform: translateX(0);
+}
+.scored-set-row-enter {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+.scored-set-cards {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+/* Tiny card size for the history panel — slightly bigger than cheat panel */
+.scored-set-cards .card-tiny {
+  width: 28px;
+  height: 40px;
+}
+.scored-set-cards .card-tiny .c-face-rank { font-size: 0.75rem; line-height: 1; }
+.scored-set-cards .card-tiny .c-face-suit { font-size: 0.9rem;  line-height: 1; }
+
+.scored-set-pts {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #ffd700;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+/* ── Score button ────────────────────────────────────────────────────────────── */
+#btn-score {
+  background: rgba(255,220,0,0.2);
+  border-color: rgba(255,220,0,0.6);
+  font-weight: 700;
+}
+#btn-score:hover { background: rgba(255,220,0,0.35); }
+
+/* ── Hand action buttons ─────────────────────────────────────────────────────── */
+
+#hand-label button{
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+#hand-label button:hover { 
+  background: rgba(255,255,255,0.28); 
+}
+
+
+#btn-isolate-left, #btn-isolate-right {
+
+}
+#btn-isolate-left:hover, #btn-isolate-right:hover {
+}
+#btn-deselect-hand {
+
+}
+#btn-deselect-hand:hover { 
+
+}
+#btn-discard-hand {
+
+}
+#btn-discard-hand:hover { 
+  background: rgba(255,0,0,0.35) !important;
+}
+
+/* ── Discard zone (top-right of table) ───────────────────────────────────── */
+#discard-zone {
+  position: absolute;
+  /* Left/top are set in JS (positionDiscardZone) to snap to rightmost grid col */
+  width: 80px;
+  height: 112px;
+  border: 2px dashed rgba(255,110,50,0.35);
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#discard-zone::after {
+  content: '🗑';
+  font-size: 1.4rem;
+  opacity: 0.3;
+}
+
+/* ── Play Selected button (hand card batch play) ─────────────────────────────── */
+#btn-play-selected {
+
+}
+#btn-play-selected:hover { 
+  background: rgba(50,255,50,0.35) !important; 
+}
+
+/* ── Hand score preview (shown next to Play Selected) ────────────────────────── */
+#hand-score-preview {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.03em;
+}
+.hand-score-preview-valid   { color: #7fff7f; background: rgba(0,180,60,0.22); border: 1px solid rgba(0,200,70,0.45); }
+.hand-score-preview-invalid { color: #ff9090; background: rgba(200,0,0,0.18); border: 1px solid rgba(220,60,60,0.4); }
+.hand-score-preview-neutral { color: rgba(255,255,255,0.5); font-weight: 400; font-size: 0.75rem; }
+
+/* ── Cheat panel ─────────────────────────────────────────────────────────────── */
+#btn-cheat {
+  background: rgba(160,100,255,0.18);
+  border-color: rgba(160,100,255,0.5);
+}
+#btn-cheat:hover { background: rgba(160,100,255,0.32); }
+
+#cheat-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 300px;
+  height: 100vh;
+  background: rgba(14, 14, 22, 0.97);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+}
+#cheat-panel.hidden { display: none; }
+
+#cheat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+#cheat-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.8;
+}
+#cheat-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#cheat-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+#cheat-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px 0;
+}
+
+.cheat-score-group {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #ffdd00;
+  padding: 10px 14px 4px;
+  opacity: 0.85;
+}
+.cheat-score-group:first-child { padding-top: 6px; }
+
+.cheat-set {
+  display: flex;
+  align-items: center;
+  padding: 5px 14px;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.cheat-set:hover { background: rgba(255,255,255,0.08); }
+.cheat-set-active { background: rgba(255,220,0,0.18) !important; }
+
+.cheat-cards {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Tiny card size for cheat panel */
+.card-tiny {
+  width: 38px !important;
+  height: 53px !important;
+  border-radius: 4px !important;
+  flex-shrink: 0;
+}
+.card-tiny .c-face-rank { font-size: 1rem; line-height: 1.1; }
+.card-tiny .c-face-suit { font-size: 1.3rem; line-height: 1; }
+.card-tiny .joker-star  { font-size: 1.2rem; }
+
+.cheat-empty {
+  padding: 24px 16px;
+  text-align: center;
+  opacity: 0.45;
+  font-size: 0.85rem;
+}
+/* ── Deck browser panel ───────────────────────────────────────────────────── */
+#deck-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 340px;
+  height: 100vh;
+  background: rgba(14, 14, 22, 0.97);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+}
+#deck-panel.hidden { display: none; }
+
+#deck-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+#deck-panel-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.deck-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 6px 10px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.deck-tab:hover { color: rgba(255,255,255,0.75); }
+.deck-tab.active {
+  color: #fff;
+  border-bottom-color: rgba(80,200,255,0.8);
+}
+
+#deck-panel-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+#deck-panel-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+#deck-panel-content {
+  overflow-y: auto;
+  flex: 1;
+  padding: 10px 12px;
+}
+
+/* Color section headers inside the deck panel */
+.deck-section-header {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+  padding: 10px 2px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 6px;
+}
+.deck-section-header:first-child { padding-top: 2px; }
+
+/* Card grid inside deck panel */
+.deck-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+/* ── Deck panel controls (search + group-by) ─────────────────────────────── */
+#deck-panel-controls {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+#deck-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#deck-search::placeholder { color: rgba(255,255,255,0.3); }
+#deck-search:focus { border-color: rgba(80,200,255,0.6); }
+
+#deck-group-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deck-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.45;
+  margin-right: 2px;
+}
+
+.deck-group-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.deck-group-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
+.deck-group-btn.active {
+  background: rgba(80,200,255,0.18);
+  border-color: rgba(80,200,255,0.5);
+  color: rgba(80,200,255,1);
+}
+
+/* Match-count label shown when search is active */
+.deck-match-count {
+  font-size: 0.9rem;
+  opacity: 0.5;
+  padding: 6px 2px 0;
+  font-style: italic;
+}
+
+/* Joker wildcard indicator on matched jokers */
+.deck-joker-wildcard {
+  font-size: 0.6rem;
+  opacity: 0.5;
+  margin-top: 1px;
+  text-align: center;
+  line-height: 1;
+}
+
+#deck-separate-jokers-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+#deck-separate-jokers-label:hover { color: rgba(255,255,255,0.8); }
+#deck-separate-jokers {
+  accent-color: rgba(80,200,255,0.9);
+  cursor: pointer;
+}
+
+/* ── Deck panel: clickable cards (debug mode only) ───────────────────────── */
+.card-tiny.deck-card-clickable {
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s, outline 0.1s;
+  outline: 2px solid transparent;
+}
+.card-tiny.deck-card-clickable:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  outline: 2px solid rgba(80,200,255,0.8);
+  z-index: 10;
+  position: relative;
+}
+.card-tiny.deck-card-clickable:active {
+  transform: translateY(-1px) scale(1.03);
+}
