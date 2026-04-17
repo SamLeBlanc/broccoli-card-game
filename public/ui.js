@@ -18,6 +18,8 @@ $('#join-btn').on('click', () => {
   setTimeout(() => playShuffleAnimation(null), 300);
 });
 
+if (window.APP_DEBUG) $('#btn-debug').show();
+
 $('#btn-debug').on('click', () => {
   maxPlayers = 4;
   selectedPlayerCount = 4;
@@ -567,4 +569,4 @@ socket.on('ai-turn', ({ phase, seat, name, cards, score }) => {
     });
     setTimeout(() => $toast.remove(), 1500);
   }
-});
+});                                                                                                      
