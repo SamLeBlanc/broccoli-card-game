@@ -338,6 +338,7 @@ body {
 #hand-area {
   background: rgba(0,0,0,0.25); padding: 0.5rem 0.75rem;
   flex-shrink: 0; min-height: 100px;
+  overflow: hidden;
   transition: background 0.15s, box-shadow 0.15s;
 }
 #hand-area.drop-target {
@@ -366,8 +367,9 @@ body {
 .sort-btn.active { background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); font-weight: 700; }
 
 #hand-cards {
-  display: flex; gap: 8px; flex-wrap: nowrap;
-  padding-bottom: 4px; align-items: flex-end;
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 4px; align-items: flex-end; row-gap: 12px;
+  width: 100%; box-sizing: border-box;
 }
 
 .hand-card {
@@ -428,10 +430,12 @@ body {
 .isolate-box-close:hover { background: rgba(255,80,80,0.45); color: #fff; }
 /* Plain un-isolated "rest" section */
 .isolate-rest {
-  display: inline-flex;
+  display: flex;
   gap: 6px;
   align-items: flex-end;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  width: 100%;
+  row-gap: 12px;
 }
 
 .card-small { width: 60px; height: 84px; }
@@ -1170,4 +1174,4 @@ body {
 @keyframes ai-play-out {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(0.9); }
-} 
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       

@@ -393,6 +393,7 @@ let deckSeparateJokers = true;
       const delta = startX - e.clientX;          // dragging left = grow
       const newW  = Math.min(MAX_W, Math.max(MIN_W, startW + delta));
       $sidebar.css('width', newW + 'px');
+      syncHandMaxWidth();
     });
 
     $(document).on('mouseup.sidebarResize', function() {
@@ -400,9 +401,22 @@ let deckSeparateJokers = true;
       $('body').css('user-select', '').css('cursor', '');
       $(document).off('.sidebarResize');
       localStorage.setItem(STORAGE_KEY, $sidebar.outerWidth());
+      syncHandMaxWidth();
     });
   });
+
+  // Also sync on window resize
+  $(window).on('resize', syncHandMaxWidth);
 })();
+
+// Keep #hand-cards max-width equal to the center column width
+function syncHandMaxWidth() {
+  const w = document.getElementById('center-col').clientWidth;
+  const padding = 24; // 0.75rem * 2 sides = ~12px each side
+  document.getElementById('hand-cards').style.maxWidth = (w - padding) + 'px';
+}
+// Run once after layout settles
+$(function() { setTimeout(syncHandMaxWidth, 0); });
 
 // ── Right sidebar tab switching ───────────────────────────────────────────
 function switchSidebarTab(name) {
@@ -569,4 +583,4 @@ socket.on('ai-turn', ({ phase, seat, name, cards, score }) => {
     });
     setTimeout(() => $toast.remove(), 1500);
   }
-});                                                                                                      
+});

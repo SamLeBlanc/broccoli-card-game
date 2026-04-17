@@ -80,25 +80,73 @@ function scoreSelection() {
 }
 
 // ── Cheat: find all valid sets in hand ───────────────────────────────────────
+//
+// Pruning strategy (rank-only — color/suit still fully validated by validateAndScore):
+//
+//   1. Duplicate fixed rank → prune entire subtree.
+//      Two cards sharing the same non-wild rank make rank invalid, and adding more
+//      cards cannot remove that duplicate, so we skip the branch entirely.
+//
+//   2. Span > MAX_SIZE − 1 → prune entire subtree.
+//      The span of fixed ranks only grows as we add cards, so if it already
+//      exceeds what the largest allowed set (MAX_SIZE) could accommodate, no
+//      deeper branch will ever pass the rank check.
+//
+//   3. Skip validateAndScore when span > current size − 1.
+//      We still recurse (a larger set might pass), but we know this combo is
+//      rank-invalid so we skip the full validation call.
+//
+// All three checks are maintained incrementally — no re-scanning of the combo.
 function findAllValidSets() {
-  const n       = myHand.length;
-  const results = [];
+  const n        = myHand.length;
+  const results  = [];
   const MAX_SIZE = Math.min(n, 13);
 
-  function combine(start, current) {
-    if (current.length >= 3) {
-      const res = validateAndScore(current);
-      if (res.valid) results.push({ cards: res.orderedCards, score: res.score, result: res });
+  // fixedRanks: Set of non-wild ranks already in current combo
+  // minFixed / maxFixed: current span bounds of fixed ranks
+  function combine(start, current, fixedRanks, minFixed, maxFixed) {
+    const size = current.length;
+
+    if (size >= 3) {
+      // Only call validateAndScore when rank span fits this size
+      // (if not, rank will definitely fail — but we still recurse deeper)
+      const spanOk = fixedRanks.size === 0 || (maxFixed - minFixed <= size - 1);
+      if (spanOk) {
+        const res = validateAndScore(current);
+        if (res.valid) results.push({ cards: res.orderedCards, score: res.score, result: res });
+      }
     }
-    if (current.length >= MAX_SIZE) return;
+
+    if (size >= MAX_SIZE) return;
+
     for (let i = start; i < n; i++) {
-      current.push(myHand[i]);
-      combine(i + 1, current);
-      current.pop();
+      const card = myHand[i];
+
+      if (card.wildRank) {
+        // Wild-rank cards never affect fixed-rank state
+        current.push(card);
+        combine(i + 1, current, fixedRanks, minFixed, maxFixed);
+        current.pop();
+      } else {
+        // Prune 1: duplicate fixed rank — entire subtree stays rank-invalid
+        if (fixedRanks.has(card.rank)) continue;
+
+        const newMin = fixedRanks.size === 0 ? card.rank : Math.min(minFixed, card.rank);
+        const newMax = fixedRanks.size === 0 ? card.rank : Math.max(maxFixed, card.rank);
+
+        // Prune 2: span already too wide even for MAX_SIZE cards
+        if (newMax - newMin > MAX_SIZE - 1) continue;
+
+        fixedRanks.add(card.rank);
+        current.push(card);
+        combine(i + 1, current, fixedRanks, newMin, newMax);
+        current.pop();
+        fixedRanks.delete(card.rank);
+      }
     }
   }
 
-  combine(0, []);
+  combine(0, [], new Set(), 0, 0);
   results.sort((a, b) => b.score - a.score);
   return results;
 }
