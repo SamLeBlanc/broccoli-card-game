@@ -1,7 +1,8 @@
 // ── Debug flag ────────────────────────────────────────────────────────────────
-// Controlled server-side: set DEBUG_MODE=true in env vars to enable.
-// Falls back to false in production.
-const DEBUG = true;
+// window.DEBUG is injected by the server via /config.js.
+// On in local dev (NODE_ENV != 'production'), off on Railway automatically.
+// Falls back to false so a config.js load failure never enables debug in prod.
+const DEBUG = window.DEBUG ?? false;
 
 // ── Socket connection ─────────────────────────────────────────────────────────
 const socket = io();

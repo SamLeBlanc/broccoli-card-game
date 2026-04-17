@@ -11,12 +11,12 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Client config injection ───────────────────────────────────────────────────
-// Debug mode is ONLY on when DEBUG_MODE=true is explicitly set.
-// Never falls back on NODE_ENV so production deploys are always safe.
+// Debug is off on Railway (RAILWAY_ENVIRONMENT is always set there), on everywhere else.
+// Uses RAILWAY_ENVIRONMENT instead of NODE_ENV to avoid local env pollution.
 app.get('/config.js', (req, res) => {
-  const debug = process.env.DEBUG_MODE === 'true';
+  const debug = process.env.RAILWAY_ENVIRONMENT != null ? false : true;
   res.type('application/javascript')
-     .send(`window.APP_DEBUG = ${debug};`);
+     .send(`window.DEBUG = ${debug};`);
 });
 
 // ── Card data ────────────────────────────────────────────────────────────────

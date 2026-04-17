@@ -275,11 +275,17 @@ Tab switching: `switchSidebarTab(name)` in `ui.js` — hides all `.sidebar-pane`
 ## Dev / Debug
 
 ```bash
-DEBUG_MODE=true node server.js
-# Auto-joins 4 players, deals 20 cards, enables deck browser + card injector
+node server.js
+# Debug is automatically ON locally (RAILWAY_ENVIRONMENT is not set locally)
+# Debug is automatically OFF on Railway (RAILWAY_ENVIRONMENT is always present there)
+# No manual env var needed — never set DEBUG_MODE, APP_DEBUG, or similar in Railway
 ```
 
-- `window.APP_DEBUG` is injected via `GET /config.js` (not a static file — don't look in /public).
+**How the single debug flag works:**
+`server.js` checks `process.env.RAILWAY_ENVIRONMENT` and injects `window.DEBUG` via `GET /config.js`.
+All client code references `DEBUG` directly (it's `window.DEBUG` — no redeclaration needed).
+
+- `window.DEBUG` is injected via `GET /config.js` (not a static file — don't look in /public).
 - `localScoredIds` (Set in state.js) prevents scored cards from reappearing on late `state` broadcasts.
 - `debug-add-card` socket event injects a card additively (does not remove from deck).
 

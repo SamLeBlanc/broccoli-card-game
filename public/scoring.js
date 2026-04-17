@@ -281,50 +281,27 @@ function showScoreResult({ valid, rank, color, suit, score }, cards, cx, topY) {
 }
 
 // ── Opponent hand rendering ───────────────────────────────────────────────────
-const POSITIONS = ['top', 'left', 'right'];
-
 function renderOpponentHands(players, seats) {
-  const n = maxPlayers;
-  const seatToPos = {};
-  const relMap = { 2: 'top', 1: 'left', 3: 'right' };
-  for (const [offset, pos] of Object.entries(relMap)) {
-    seatToPos[(mySeat + parseInt(offset)) % n] = pos;
-  }
-
-  for (const pos of POSITIONS) {
-    $(`#opp-${pos}`).addClass('hidden');
-    $(`#opp-${pos}-cards`).empty();
-    $(`#opp-${pos}-name`).text('');
-  }
+  const $bar = $('#opp-top').empty().addClass('hidden');
 
   const source = seats
     ? Object.entries(seats).map(([seatStr, s]) => ({ seat: parseInt(seatStr), ...s }))
     : Object.entries(players).map(([id, p]) => ({ seat: p.seat, name: p.name, handCount: p.handCount, socketId: id, empty: false }));
 
-  for (const entry of source) {
-    if (entry.seat === mySeat) continue;
-    const pos = seatToPos[entry.seat];
-    if (!pos) continue;
-    const $area    = $(`#opp-${pos}`);
-    const $cardsEl = $(`#opp-${pos}-cards`);
-    const $nameEl  = $(`#opp-${pos}-name`);
-    if ($area.length === 0) continue;
+  const opponents = source.filter(e => e.seat !== mySeat);
+  if (opponents.length === 0) return;
 
-    $area.removeClass('hidden');
-    $nameEl.text(entry.empty
-      ? `${entry.name} — waiting…`
-      : `${entry.name} (${entry.handCount})`);
-    $nameEl.css('opacity', entry.empty ? '0.45' : '0.75');
-
-    for (let i = 0; i < entry.handCount; i++) {
-      const $c = $('<div>').addClass('card opp-card').html('<div class="card-back"></div>');
-      $cardsEl.append($c);
-    }
-
-    if (entry.handCount > 0) {
-      const $badge = $('<div>').addClass('opp-count-badge')
-        .text(`${entry.handCount} card${entry.handCount !== 1 ? 's' : ''}`);
-      $cardsEl.append($badge);
-    }
+  $bar.removeClass('hidden');
+  for (const entry of opponents) {
+    const n = entry.handCount || 0;
+    const countLabel = entry.empty ? '—' : `${n} card${n !== 1 ? 's' : ''}`;
+    $bar.append(
+      $('<div>').addClass('opp-player-chip').toggleClass('opp-player-chip--waiting', !!entry.empty).append(
+        $('<div>').addClass('opp-avatar').text('👤'),
+        $('<div>').addClass('opp-player-name').text(entry.name),
+        $('<div>').addClass('opp-card-count').text(countLabel)
+          .toggleClass('opp-card-count--empty', !!entry.empty)
+      )
+    );
   }
 }

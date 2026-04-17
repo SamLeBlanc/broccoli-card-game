@@ -18,7 +18,6 @@ $('#join-btn').on('click', () => {
   setTimeout(() => playShuffleAnimation(null), 300);
 });
 
-if (window.APP_DEBUG) $('#btn-debug').show();
 
 $('#btn-debug').on('click', () => {
   maxPlayers = 4;

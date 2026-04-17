@@ -112,46 +112,7 @@ body {
   min-height: 0;
 }
 
-/* ── Side opponent panels (left / right) ─────────────────────────────────── */
-.opp-side {
-  width: 96px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 4px;
-  background: rgba(0,0,0,0.15);
-}
-.opp-side .opp-name {
-  font-size: 0.72rem;
-  font-weight: 600;
-  opacity: 0.75;
-  text-align: center;
-  margin-bottom: 4px;
-}
-/* Side cards stacked vertically; each card rotated 90°, 50% overlap */
-.opp-side .opp-cards {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-.opp-side .opp-card {
-  width: 56px;
-  height: 80px;
-  transform: rotate(90deg);
-  flex-shrink: 0;
-  margin: 0;
-}
-/* 50% overlap: each card after the first overlaps by half the card's layout height */
-.opp-side .opp-card + .opp-card {
-    margin-top: -53px;
-}
-
-/* ── Center column: top opp + table + your hand ──────────────────────────── */
+/* ── Center column: opponents bar + table + your hand ───────────────────── */
 #center-col {
   flex: 1;
   display: flex;
@@ -159,58 +120,53 @@ body {
   min-width: 0;
 }
 
-/* ── Top opponent hand ───────────────────────────────────────────────────── */
+/* ── Opponents bar (all players across the top) ──────────────────────────── */
 .opp-top {
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 6px 8px 4px;
-  background: rgba(0,0,0,0.15);
-  gap: 4px;
-}
-.opp-top .opp-name {
-  font-size: 0.72rem;
-  font-weight: 600;
-  opacity: 0.75;
-}
-.opp-top .opp-cards {
-  position: relative;
-  display: flex;
   flex-direction: row;
-  gap: 0;
-  flex-wrap: nowrap;
-  max-width: 100%;
-}
-/* Same card size as sides; 50% horizontal overlap */
-.opp-top .opp-card {
-  width: 56px;
-  height: 80px;
-  flex-shrink: 0;
-  margin: 0;
-}
-.opp-top .opp-card + .opp-card {
-  margin-left: -28px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0,0,0,0.15);
 }
 
-/* ── Opponent card-count bubble ──────────────────────────────────────────── */
-.opp-count-badge {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.82);
-  color: #fff;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-radius: 14px;
-  padding: 4px 11px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 10;
-  letter-spacing: 0.02em;
+/* ── Individual opponent chip ────────────────────────────────────────────── */
+.opp-player-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.07);
+  min-width: 54px;
 }
+.opp-player-chip--waiting { opacity: 0.45; }
+.opp-avatar {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.opp-player-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.8;
+  text-align: center;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opp-card-count {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  opacity: 0.9;
+  line-height: 1;
+}
+.opp-card-count--empty { opacity: 0.35; }
 
 /* ── Table surface ───────────────────────────────────────────────────────── */
 #table {
@@ -1174,4 +1130,4 @@ body {
 @keyframes ai-play-out {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(0.9); }
-}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+} 
