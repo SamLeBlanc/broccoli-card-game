@@ -1,4 +1,21 @@
-// ── Join screen: player count picker ─────────────────────────────────────────
+// ── Join screen: host/join mode + player count picker ────────────────────────
+let joinMode = 'host';   // 'host' | 'join'
+
+$('.mode-btn').on('click', function() {
+  $('.mode-btn').removeClass('active');
+  $(this).addClass('active');
+  joinMode = $(this).attr('data-mode');
+  if (joinMode === 'host') {
+    $('#host-options').removeClass('hidden');
+    $('#join-options').addClass('hidden');
+    $('#join-btn').text('Host Table');
+  } else {
+    $('#host-options').addClass('hidden');
+    $('#join-options').removeClass('hidden');
+    $('#join-btn').text('Join Table');
+  }
+});
+
 $('.count-btn').on('click', function() {
   $('.count-btn').removeClass('active');
   $(this).addClass('active');
@@ -7,9 +24,17 @@ $('.count-btn').on('click', function() {
 
 $('#join-btn').on('click', () => {
   const name   = $('#player-name').val().trim() || 'Player';
-  const roomId = $('#room-id').val().trim()     || 'default';
-  maxPlayers = selectedPlayerCount;
-  socket.emit('join', { roomId, name, maxPlayers });
+  const roomId = (joinMode === 'host'
+                    ? $('#room-id-host').val().trim()
+                    : $('#room-id-join').val().trim()) || Math.random().toString(36).slice(2, 7);
+  // Only the host dictates maxPlayers; joiners send undefined so the server
+  // keeps whatever the room was created with.
+  if (joinMode === 'host') {
+    maxPlayers = selectedPlayerCount;
+    socket.emit('join', { roomId, name, maxPlayers });
+  } else {
+    socket.emit('join', { roomId, name });
+  }
   $('#join-screen').addClass('hidden');
   $('#game-screen').removeClass('hidden');
   $('#room-label').text(`Room: ${roomId}`);
@@ -34,10 +59,13 @@ $('#btn-debug').on('click', () => {
 });
 
 $('#player-name').on('keydown', (e) => {
-  if (e.key === 'Enter') $('#room-id').focus();
+  if (e.key === 'Enter') {
+    if (joinMode === 'host') $('#room-id-host').focus();
+    else                     $('#room-id-join').focus();
+  }
 });
 
-$('#room-id').on('keydown', (e) => {
+$('#room-id-host, #room-id-join').on('keydown', (e) => {
   if (e.key === 'Enter') $('#join-btn').click();
 });
 

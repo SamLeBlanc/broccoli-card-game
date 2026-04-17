@@ -52,7 +52,12 @@ body {
   gap: 0.5rem;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
-.join-box h1 { font-size: 1.6rem; margin-bottom: 0.5rem; text-align: center; }
+.join-box h1 { font-size: 1.8rem; margin: 0; text-align: center; }
+.join-title {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.6rem; margin-bottom: 0.6rem;
+}
+.join-logo { width: 48px; height: 48px; }
 .join-box label { font-size: 0.85rem; font-weight: 600; color: #555; margin-top: 0.5rem; }
 .sublabel { font-weight: 400; font-size: 0.82em; }
 .join-box input[type=text] {
@@ -60,6 +65,15 @@ body {
   padding: 0.5rem 0.75rem; font-size: 1rem; outline: none;
 }
 .join-box input[type=text]:focus { border-color: #2d5be3; }
+#host-options, #join-options { display: flex; flex-direction: column; gap: 0.5rem; }
+.mode-row { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+.mode-btn {
+  flex: 1; padding: 0.5rem; font-size: 1rem; font-weight: 700;
+  border: 2px solid #ccc; border-radius: 8px;
+  background: #f5f5f5; cursor: pointer; transition: all 0.1s;
+}
+.mode-btn.active { border-color: #2d5be3; background: #2d5be3; color: #fff; }
+.mode-btn:hover:not(.active) { border-color: #999; }
 .player-count-row { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
 .count-btn {
   flex: 1; padding: 0.5rem; font-size: 1.1rem; font-weight: 700;
@@ -346,7 +360,7 @@ body {
 .sort-btn.active { background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); font-weight: 700; }
 
 #hand-cards {
-  display: flex; gap: 8px; flex-wrap: wrap;
+  display: flex; gap: 0; flex-wrap: wrap;
   padding-bottom: 4px; align-items: flex-end; row-gap: 12px;
   width: 100%; box-sizing: border-box;
 }
@@ -371,50 +385,53 @@ body {
 .hand-ghost { opacity: 0.15; pointer-events: none; }
 .hand-ghost:hover { transform: none !important; }
 
-/* ── Isolated group box ───────────────────────────────────────────────────── */
-.isolate-box {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  background: rgba(80,200,255,0.08);
-  border: 1.5px solid rgba(80,200,255,0.5);
-  border-radius: 10px;
-  padding: 4px 7px 5px;
+/* ── Hand divider slots ───────────────────────────────────────────────────── */
+.hand-divider-slot {
+  position: relative;
+  width: 6px;
   flex-shrink: 0;
-  box-shadow: 0 0 8px 1px rgba(80,200,255,0.18);
-}
-.isolate-box-cards {
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-.isolate-box-header {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-  min-height: 14px;
-}
-.isolate-box-close {
-  background: rgba(255,80,80,0.18);
-  border: 1px solid rgba(255,80,80,0.5);
-  color: rgba(255,150,150,0.9);
-  border-radius: 4px;
-  padding: 0 5px;
-  font-size: 0.65rem;
-  line-height: 1.5;
+  align-self: stretch;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: width 0.15s ease;
+  z-index: 10;
 }
-.isolate-box-close:hover { background: rgba(255,80,80,0.45); color: #fff; }
-/* Plain un-isolated "rest" section */
-.isolate-rest {
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  width: 100%;
-  row-gap: 12px;
+
+/* Existing divider: always shows as a visible gap */
+.hand-divider-slot.is-divider {
+  width: 20px;
+}
+
+/* The visual line — hidden by default, shown on hover or when active */
+.hand-divider-slot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s, opacity 0.12s;
+  pointer-events: none;
+}
+
+/* Hover on empty slot: show a faint + indicator */
+.hand-divider-slot:not(.is-divider).hovered {
+  width: 20px;
+}
+.hand-divider-slot:not(.is-divider).hovered::after {
+  background: rgba(120, 200, 255, 0.55);
+}
+
+/* Existing divider: always show a subtle line */
+.hand-divider-slot.is-divider::after {
+  background: rgba(120, 200, 255, 0.3);
+}
+
+/* Hover on existing divider: show it brighter as a remove target */
+.hand-divider-slot.is-divider.hovered::after {
+  background: rgba(255, 100, 100, 0.65);
 }
 
 .card-small { width: 60px; height: 84px; }
@@ -1191,3 +1208,90 @@ body {
   box-shadow: 2px 4px 14px rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
+
+/* Text label that floats above intro cards on the table */
+.intro-label {
+  position: absolute;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: normal;
+  line-height: 1.4;
+  width: 100%;
+}
+
+/* Nav button row (Next / Back / Close) */
+.intro-nav {
+  position: absolute;
+  display: flex;
+  gap: 10px;
+  z-index: 60;
+}
+
+.intro-nav-btn {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #222;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: background 0.15s;
+}
+
+.intro-nav-btn:hover {
+  background: #fff;
+}
+
+.intro-nav-close {
+  background: rgba(200, 80, 80, 0.88);
+  color: #fff;
+}
+
+.intro-nav-close:hover {
+  background: rgba(200, 80, 80, 1);
+}
+
+.intro-highlight {
+  background: #ffe033;
+  color: #111;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.intro-highlight-green {
+  background: #1a5c2a;
+  color: #fff;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+/* Micro cards for the 208-card grid slide */
+.intro-micro-card {
+  border-radius: 2px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+}
+.intro-micro-card .card-face {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.intro-micro-card .c-face-rank {
+  font-size: 0.5rem !important;
+  line-height: 1 !important;
+  font-weight: 800;
+}
+.intro-micro-card .c-face-suit {
+  font-size: 0.6rem !important;
+  line-height: 1 !important;
+}
+                                                       

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Table</title>
+  <title>Broccoli</title>
   <link rel="stylesheet" href="style.css">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,18 +15,32 @@
 <!-- Join screen -->
 <div id="join-screen">
   <div class="join-box">
-    <h1>🃏 Card Table</h1>
+    <div class="join-title">
+      <img class="join-logo" src="/broccoli.png" alt="Broccoli logo" />
+      <h1>Broccoli</h1>
+    </div>
     <label>Your name</label>
     <input id="player-name" type="text" placeholder="e.g. Sam" maxlength="20" />
-    <label>Room code <span class="sublabel">(share with friends)</span></label>
-    <input id="room-id" type="text" placeholder="e.g. mygame" maxlength="20" />
-    <label>Number of players</label>
-    <div class="player-count-row">
-      <button class="count-btn active" data-count="2">2</button>
-      <button class="count-btn" data-count="3">3</button>
-      <button class="count-btn" data-count="4">4</button>
+    <label>Play mode</label>
+    <div class="mode-row">
+      <button class="mode-btn active" data-mode="host">Host</button>
+      <button class="mode-btn" data-mode="join">Join</button>
     </div>
-    <button id="join-btn">Join Table</button>
+    <div id="host-options">
+      <label>Room code <span class="sublabel">(share with friends)</span></label>
+      <input id="room-id-host" type="text" placeholder="e.g. mygame" maxlength="20" />
+      <label>Number of players</label>
+      <div class="player-count-row">
+        <button class="count-btn active" data-count="2">2</button>
+        <button class="count-btn" data-count="3">3</button>
+        <button class="count-btn" data-count="4">4</button>
+      </div>
+    </div>
+    <div id="join-options" class="hidden">
+      <label>Room code</label>
+      <input id="room-id-join" type="text" placeholder="enter room code" maxlength="20" />
+    </div>
+    <button id="join-btn">Host Table</button>
     <button id="btn-debug" style="display:none">🐛 Debug — 4 players, auto-deal</button>
   </div>
 </div>

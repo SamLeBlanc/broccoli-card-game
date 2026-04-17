@@ -3,52 +3,39 @@ function renderHand() {
   const $area = $('#hand-cards').empty();
   $('#hand-count').text(`(${myHand.length})`);
 
-  // Build ordered segment list from isolateDividers.
-  const sorted = [...isolateDividers].sort((a, b) => a - b);
-  const segments = [];
-  let prev = 0;
-  for (const d of sorted) {
-    if (d > prev && d <= myHand.length) {
-      segments.push({ cards: myHand.slice(prev, d), dividerEnd: d });
-      prev = d;
-    }
-  }
-  // The final "rest" segment is never boxed
-  segments.push({ cards: myHand.slice(prev), dividerEnd: null });
+  const dividerSet = new Set(isolateDividers);
 
-  for (let si = 0; si < segments.length; si++) {
-    const seg    = segments[si];
-    const isRest = si === segments.length - 1;
-
-    const cardEls = seg.cards.map(card => {
-      const el = makeCardEl(card, { faceUp: true, small: true });
-      return $(el).addClass('hand-card')
-        .toggleClass('selected', selectedHandIds.has(card.id))
-        .attr('title', 'Click to select · Drag to table to play')
-        .on('mousedown', (e) => startHandDrag(e, card));
-    });
-
-    if (isRest) {
-      const $rest = $('<div class="isolate-rest">');
-      cardEls.forEach($c => $rest.append($c));
-      $area.append($rest);
-    } else {
-      const dividerPos = seg.dividerEnd;
-      const $box   = $('<div class="isolate-box">');
-      const $hdr   = $('<div class="isolate-box-header">');
-      $('<button class="isolate-box-close">✕</button>')
-        .attr('title', 'Remove isolation')
-        .on('click', () => {
-          isolateDividers = isolateDividers.filter(d => d !== dividerPos);
+  // Render cards flat with divider slots between every adjacent pair.
+  // Slots that coincide with an isolateDivider are rendered as visible gaps.
+  for (let i = 0; i < myHand.length; i++) {
+    // Insert a divider slot BEFORE each card except the first
+    if (i > 0) {
+      const slotIndex = i; // divider at index i means "gap before card i"
+      const isDiv = dividerSet.has(slotIndex);
+      const $slot = $('<div>')
+        .addClass(isDiv ? 'hand-divider-slot is-divider' : 'hand-divider-slot')
+        .attr('data-slot', slotIndex)
+        .on('mouseenter', function() { $(this).addClass('hovered'); })
+        .on('mouseleave', function() { $(this).removeClass('hovered'); })
+        .on('click', function(e) {
+          e.stopPropagation();
+          if ($(this).hasClass('is-divider')) {
+            isolateDividers = isolateDividers.filter(d => d !== slotIndex);
+          } else {
+            isolateDividers = [...new Set([...isolateDividers, slotIndex])].sort((a,b) => a-b);
+          }
           renderHand();
-        })
-        .appendTo($hdr);
-      $box.append($hdr);
-      const $cards = $('<div class="isolate-box-cards">');
-      cardEls.forEach($c => $cards.append($c));
-      $box.append($cards);
-      $area.append($box);
+        });
+      $area.append($slot);
     }
+
+    const card = myHand[i];
+    const el = makeCardEl(card, { faceUp: true, small: true });
+    $(el).addClass('hand-card')
+      .toggleClass('selected', selectedHandIds.has(card.id))
+      .attr('title', 'Click to select · Drag to table to play')
+      .on('mousedown', (e) => startHandDrag(e, card))
+      .appendTo($area);
   }
 }
 
