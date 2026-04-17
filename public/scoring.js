@@ -128,8 +128,14 @@ function findAllValidSets() {
         combine(i + 1, current, fixedRanks, minFixed, maxFixed);
         current.pop();
       } else {
-        // Prune 1: duplicate fixed rank — entire subtree stays rank-invalid
-        if (fixedRanks.has(card.rank)) continue;
+        // Prune 1: duplicate fixed rank in a MIXED set → entire subtree invalid.
+        // Exception: "all same rank" sets (all cards share one rank) are valid —
+        // validateAndScore handles uniq.size === 1 as the 'same' rank type.
+        // In the all-same case we must also NOT touch fixedRanks (it's a Set, so
+        // add is a no-op, but delete on backtrack would incorrectly clear the rank
+        // while the first card of that rank is still in `current`).
+        const isAllSame = fixedRanks.size === 1 && fixedRanks.has(card.rank);
+        if (fixedRanks.has(card.rank) && !isAllSame) continue;
 
         const newMin = fixedRanks.size === 0 ? card.rank : Math.min(minFixed, card.rank);
         const newMax = fixedRanks.size === 0 ? card.rank : Math.max(maxFixed, card.rank);
@@ -137,11 +143,11 @@ function findAllValidSets() {
         // Prune 2: span already too wide even for MAX_SIZE cards
         if (newMax - newMin > MAX_SIZE - 1) continue;
 
-        fixedRanks.add(card.rank);
+        if (!isAllSame) fixedRanks.add(card.rank);
         current.push(card);
         combine(i + 1, current, fixedRanks, newMin, newMax);
         current.pop();
-        fixedRanks.delete(card.rank);
+        if (!isAllSame) fixedRanks.delete(card.rank);
       }
     }
   }
@@ -280,28 +286,40 @@ function showScoreResult({ valid, rank, color, suit, score }, cards, cx, topY) {
   $el.get(0)._timer = setTimeout(() => $el.addClass('hidden'), 1800);
 }
 
-// ── Opponent hand rendering ───────────────────────────────────────────────────
+// ── Player chip bar (all seats, including you) ────────────────────────────────
 function renderOpponentHands(players, seats) {
   const $bar = $('#opp-top').empty().addClass('hidden');
 
   const source = seats
     ? Object.entries(seats).map(([seatStr, s]) => ({ seat: parseInt(seatStr), ...s }))
-    : Object.entries(players).map(([id, p]) => ({ seat: p.seat, name: p.name, handCount: p.handCount, socketId: id, empty: false }));
+    : Object.entries(players).map(([id, p]) => ({ seat: p.seat, name: p.name, handCount: p.handCount, score: 0, socketId: id, empty: false }));
 
-  const opponents = source.filter(e => e.seat !== mySeat);
-  if (opponents.length === 0) return;
+  const allSeats = source.filter(e => !e.empty || (e.score || 0) > 0 || (e.handCount || 0) > 0);
+  if (allSeats.length === 0) return;
 
   $bar.removeClass('hidden');
-  for (const entry of opponents) {
-    const n = entry.handCount || 0;
-    const countLabel = entry.empty ? '—' : `${n} card${n !== 1 ? 's' : ''}`;
+  for (const entry of allSeats) {
+    const isMe = entry.seat === mySeat;
+    const n    = entry.handCount || 0;
+    const pts  = entry.score || 0;
+    const name = isMe ? 'You' : entry.name;
+
+    const cardLabel  = entry.empty ? '—' : `${n} card${n !== 1 ? 's' : ''}`;
+    const scoreLabel = `${pts} pt${pts !== 1 ? 's' : ''}`;
+
     $bar.append(
-      $('<div>').addClass('opp-player-chip').toggleClass('opp-player-chip--waiting', !!entry.empty).append(
-        $('<div>').addClass('opp-avatar').text('👤'),
-        $('<div>').addClass('opp-player-name').text(entry.name),
-        $('<div>').addClass('opp-card-count').text(countLabel)
-          .toggleClass('opp-card-count--empty', !!entry.empty)
-      )
+      $('<div>').addClass('opp-player-chip')
+        .toggleClass('opp-player-chip--me',      isMe)
+        .toggleClass('opp-player-chip--waiting', !!entry.empty)
+        .append(
+          $('<div>').addClass('opp-player-name').text(name),
+          $('<div>').addClass('opp-chip-stats').append(
+            $('<span>').addClass('opp-chip-score').text(scoreLabel),
+            $('<span>').addClass('opp-chip-sep').text('·'),
+            $('<span>').addClass('opp-chip-cards').text(cardLabel)
+              .toggleClass('opp-card-count--empty', !!entry.empty)
+          )
+        )
     );
   }
 }

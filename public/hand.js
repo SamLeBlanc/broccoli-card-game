@@ -59,15 +59,6 @@ function updateDeckCount(count) {
   $('#deck-pile').css('opacity', count > 0 ? '1' : '0.3');
 }
 
-function addChat(msg) {
-  const $log = $('#chat-log');
-  const $div = $('<div>')
-    .addClass(msg.system ? 'chat-system' : 'chat-msg')
-    .text(msg.system ? msg.text : `${msg.name}: ${msg.text}`);
-  $log.append($div);
-  $log.get(0).scrollTop = $log.get(0).scrollHeight;
-}
-
 // ── Hand sort ─────────────────────────────────────────────────────────────────
 const COLOR_ORDER = { blue: 0, red: 1, green: 2, purple: 3 };
 const SUIT_ORDER  = { spade: 0, heart: 1, club: 2, diamond: 3 };
@@ -159,16 +150,18 @@ $('#btn-discard-hand').on('click', () => {
 // ── Play Selected ─────────────────────────────────────────────────────────────
 $('#btn-play-selected').on('click', () => {
   if (selectedHandIds.size === 0) return;
-  const tr = tableEl().getBoundingClientRect();
+  const tEl = tableEl();
+  const tr  = tEl.getBoundingClientRect();
   const ids = cheatPlayOrder
     ? cheatPlayOrder.filter(id => selectedHandIds.has(id))
     : myHand.filter(c => selectedHandIds.has(c.id)).map(c => c.id);
   const n = ids.length;
-  const anchor = snapToGrid(tr.width / 2, tr.height / 2);
-  const anchorCol = Math.round((anchor.x - GRID_W / 2) / GRID_W);
-  const startCol  = anchorCol - Math.floor(n / 2);
+  // Snap the visible centre of the table (scroll-adjusted) to the grid
+  const anchor    = snapToGrid(tEl.scrollLeft + tr.width / 2, tEl.scrollTop + tr.height / 2);
+  const anchorCol = Math.round((anchor.x - gridOffsetX - GRID_W / 2) / GRID_W);
+  const startCol  = Math.max(0, Math.min(GRID_COLS - n, anchorCol - Math.floor(n / 2)));
   ids.forEach((cardId, i) => {
-    const x = (startCol + i) * GRID_W + GRID_W / 2;
+    const x = gridOffsetX + (startCol + i) * GRID_W + GRID_W / 2;
     socket.emit('play-card', { cardId, x, y: anchor.y, faceUp: true });
   });
   clearHandSelection();

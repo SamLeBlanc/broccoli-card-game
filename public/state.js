@@ -125,14 +125,15 @@ function renderHistoryPanel() {
     const { cards, score, playerName } = visible[i];
     const $row   = $('<div>').addClass('history-row');
     const $name  = $('<div>').addClass('history-player').text(playerName);
+    const $pts   = $('<div>').addClass('history-pts').text('+' + score);
+    const $label = $('<div>').addClass('history-label').append($name, $pts);
     const $cards = $('<div>').addClass('history-cards');
     for (const card of cards) {
       const el = makeCardEl(card, { faceUp: true });
       $(el).addClass('card-tiny');
       $cards.append(el);
     }
-    const $pts = $('<div>').addClass('history-pts').text('+' + score);
-    $row.append($name, $cards, $pts);
+    $row.append($label, $cards);
 
     // Slide-in animation only for the very newest visible row
     if (newestShown) {

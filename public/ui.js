@@ -170,7 +170,6 @@ socket.on('card-flipped', ({ cardId, faceUp }) => {
 
 socket.on('card-removed', ({ cardId }) => removeTableCard(cardId));
 
-socket.on('chat', addChat);
 
 // ── Deck browser panel ────────────────────────────────────────────────────────
 
@@ -458,30 +457,13 @@ $('#deck-search').on('input', () => {
   _deckSearchTimer = setTimeout(renderDeckPanel, 120);
 });
 
-// ── Scoreboard (renders into the history panel's #history-scores section) ─────
-function updateScoreboard(seats) {
-  const $sb = $('#history-scores').empty();
-  if (!seats) return;
-  // Only show seats that have been dealt in (non-zero handCount ever, or have a score)
-  let hasAny = false;
-  for (const [seatStr, seat] of Object.entries(seats)) {
-    if (seat.empty && seat.handCount === 0 && (seat.score || 0) === 0) continue;
-    hasAny = true;
-    const isMe = seat.socketId === myId;
-    $sb.append(
-      $('<div>').addClass('sb-chip').toggleClass('sb-me', isMe).append(
-        $('<span>').addClass('sb-name').text(isMe ? 'You' : seat.name),
-        $('<span>').addClass('sb-score').text(seat.score || 0)
-      )
-    );
-  }
-  $sb.toggleClass('hidden', !hasAny);
-}
+// Scores now live on the player chips in #opp-top (via renderOpponentHands).
+function updateScoreboard() {}
 
 // ── AI turn visualization ─────────────────────────────────────────────────────
 // Each AI seat maps to a fixed grid row so cards always land on the snap grid.
-// Seat 1 → row 0 (top), seat 2 → row 3 (middle), seat 3 → row 6 (bottom).
-const AI_GRID_ROWS = [0, 0, 3, 6];
+// All AI seats play to the middle row (row 3 of 0–6).
+const AI_GRID_ROWS = [0, 3, 3, 3];
 
 // Convert a table-relative grid cell centre to a viewport (fixed) coordinate.
 function gridCellToScreen(col, row) {

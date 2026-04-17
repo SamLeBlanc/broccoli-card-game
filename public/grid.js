@@ -491,9 +491,9 @@ $(document).on('mouseup', (e) => {
 
     clearHandGap();
     drag.floatEl?.remove();
-    drag.sourceEl?.classList.remove('hand-ghost');
 
     if (inHand) {
+      drag.sourceEl?.classList.remove('hand-ghost');
       const from = drag.handIndex;
       const dividerRightCardIds = isolateDividers.map(p => myHand[p]?.id);
       const [card] = myHand.splice(from, 1);
@@ -507,11 +507,27 @@ $(document).on('mouseup', (e) => {
       }
       renderHand();
     } else if (inTable) {
+      // Optimistically remove card from hand now so it never flashes back
+      // before the server's your-hand response arrives.
+      const removedIdx = myHand.findIndex(c => c.id === drag.cardId);
+      if (removedIdx !== -1) {
+        if (isolateDividers.length > 0) {
+          isolateDividers = isolateDividers
+            .map(p => (p > removedIdx ? p - 1 : p))
+            .filter(p => p > 0 && p < myHand.length - 1);
+          isolateDividers = [...new Set(isolateDividers)].sort((a, b) => a - b);
+        }
+        myHand.splice(removedIdx, 1);
+      }
+      renderHand();
       const _tEl = tableEl();
       const tr = _tEl.getBoundingClientRect();
       const raw = { x: e.clientX - tr.left + _tEl.scrollLeft, y: e.clientY - tr.top + _tEl.scrollTop };
       const snapped = snapToGrid(raw.x, raw.y);
       socket.emit('play-card', { cardId: drag.cardId, ...snapped, faceUp: true });
+    } else {
+      // Dropped outside both zones — restore the card to the hand as-is.
+      drag.sourceEl?.classList.remove('hand-ghost');
     }
 
   } else if (drag.source === 'table-group') {

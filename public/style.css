@@ -133,40 +133,63 @@ body {
   background: rgba(0,0,0,0.15);
 }
 
-/* ── Individual opponent chip ────────────────────────────────────────────── */
+/* ── Individual player chip (all players, including you) ─────────────────── */
 .opp-player-chip {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 4px 10px;
+  gap: 2px;
+  padding: 5px 12px;
   border-radius: 8px;
   background: rgba(255,255,255,0.07);
-  min-width: 54px;
+  border: 1px solid transparent;
+  min-width: 72px;
+}
+.opp-player-chip--me {
+  background: rgba(255,220,0,0.13);
+  border-color: rgba(255,220,0,0.35);
 }
 .opp-player-chip--waiting { opacity: 0.45; }
-.opp-avatar {
-  font-size: 1.4rem;
-  line-height: 1;
-}
 .opp-player-name {
-  font-size: 0.68rem;
-  font-weight: 600;
-  opacity: 0.8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.85;
   text-align: center;
-  max-width: 72px;
+  max-width: 88px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
-.opp-card-count {
-  font-size: 0.95rem;
-  font-weight: 700;
+.opp-player-chip--me .opp-player-name {
+  color: #ffdd00;
+  opacity: 1;
+}
+.opp-chip-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.opp-chip-score {
+  font-weight: 800;
   color: #fff;
-  opacity: 0.9;
-  line-height: 1;
 }
-.opp-card-count--empty { opacity: 0.35; }
+.opp-player-chip--me .opp-chip-score {
+  color: #ffdd00;
+}
+.opp-chip-sep {
+  opacity: 0.35;
+  font-size: 0.7rem;
+}
+.opp-chip-cards {
+  font-weight: 500;
+  opacity: 0.65;
+  color: #fff;
+}
+.opp-card-count--empty { opacity: 0.25; }
 
 /* ── Table surface ───────────────────────────────────────────────────────── */
 #table {
@@ -401,8 +424,8 @@ body {
 /* ── Chat ────────────────────────────────────────────────────────────────── */
 #chat-panel {
   position: fixed;
-  bottom: 150px;
-  right: 295px;
+  top: 67px;
+  left: 10px;
   width: 240px;
   background: rgba(0,0,0,0.5); border-radius: 10px;
   display: flex; flex-direction: column; max-height: 180px; overflow: hidden;
@@ -635,13 +658,6 @@ body {
   gap: 6px;
 }
 
-#history-scores {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
-}
-
 #history-filter-row {
   margin-bottom: 4px;
 }
@@ -699,20 +715,25 @@ body {
 .history-cards .card-tiny .c-face-rank { font-size: 1.15rem; line-height: 1; }
 .history-cards .card-tiny .c-face-suit { font-size: 1.3rem;  line-height: 1; }
 
-/* Player name label on left of each row */
+/* Name stacked above score on the left of each row */
+.history-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 1em;
+}
+
 .history-player {
-  font-size: 0.68rem;
   font-weight: 700;
   color: rgba(255,255,255,0.5);
   white-space: nowrap;
-  min-width: 26px;
-  text-align: right;
   letter-spacing: 0.01em;
-  flex-shrink: 0;
 }
 
 .history-pts {
-  font-size: 0.78rem;
   font-weight: 800;
   color: #ffd700;
   white-space: nowrap;
@@ -1049,32 +1070,6 @@ body {
   transform: translateY(-1px) scale(1.03);
 }
 
-/* ── Score chips (used inside #history-scores) ───────────────────────────── */
-.sb-chip {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 20px;
-  padding: 0.15rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.8);
-  white-space: nowrap;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.sb-chip.sb-me {
-  background: rgba(255,220,0,0.18);
-  border-color: rgba(255,220,0,0.45);
-  color: #ffdd00;
-}
-.sb-name { opacity: 0.85; }
-.sb-score {
-  font-weight: 800;
-  font-size: 0.85rem;
-}
-.sb-chip.sb-me .sb-score { color: #ffdd00; }
 
 /* ── AI thinking indicator ───────────────────────────────────────────────── */
 .ai-think-badge {
@@ -1131,3 +1126,68 @@ body {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(0.9); }
 } 
+
+/* ── Rules intro overlay ──────────────────────────────────────────────────── */
+#intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#intro-panel {
+  position: relative;
+  background: #1a5c2e;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  padding: 2.5rem 2.5rem 2rem;
+  max-width: 680px;
+  width: calc(100vw - 3rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+#intro-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.85rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1.15rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+#intro-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#intro-text {
+  font-size: 1.1rem;
+  line-height: 1.55;
+  text-align: center;
+  color: #fff;
+  margin: 0;
+  max-width: 520px;
+}
+
+#intro-stage {
+  /* sized dynamically by intro.js */
+  flex-shrink: 0;
+}
+
+/* Traditional cards inside the intro (white bg, red/black text) */
+.intro-trad-card {
+  box-shadow: 2px 4px 14px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
