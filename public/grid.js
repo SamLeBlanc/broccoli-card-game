@@ -1,59 +1,128 @@
 // ── Snap grid ─────────────────────────────────────────────────────────────────
-// Card slots: 80×112px cards with 4px gutters → 84×116px per cell.
-// Card centres land at: x = col*84 + 42,  y = row*116 + 58
-const GRID_W = 84, GRID_H = 116;
+// Fixed grid: 15 columns × 7 rows (landscape).
+// Cell size is computed dynamically by computeGridScale() to fill available space.
+// The grid is centred in the table area; all card coordinates include the offset.
+// Card centres land at: x = gridOffsetX + col*GRID_W + GRID_W/2
+//                       y = gridOffsetY + row*GRID_H + GRID_H/2
+const GRID_COLS = 15, GRID_ROWS = 7;
+let GRID_W = 84, GRID_H = 116;       // updated by computeGridScale()
+let gridOffsetX = 0, gridOffsetY = 0; // centering offsets (px from table top-left)
+
+// ── Responsive grid scale ─────────────────────────────────────────────────────
+function computeGridScale() {
+  const tEl = tableEl();
+  if (!tEl || !tEl.clientWidth) return;
+
+  // Save every card's grid position before changing dimensions.
+  const gridPos = {};
+  for (const [id, { data }] of Object.entries(tableCards)) {
+    gridPos[id] = cardGridPos(data);
+  }
+
+  // Pick the largest card that fits both axes, preserving the 5∶7 aspect ratio.
+  const MAX_CARD_W = 80;
+  const cardWFromWidth  = tEl.clientWidth  / GRID_COLS - 4;
+  const cardWFromHeight = (tEl.clientHeight / GRID_ROWS - 4) / (112 / 80);
+  const cardW = Math.max(8, Math.floor(Math.min(MAX_CARD_W, cardWFromWidth, cardWFromHeight)));
+  const cardH = Math.round(cardW * (112 / 80));
+  GRID_W = cardW + 4;
+  GRID_H = cardH + 4;
+
+  // Centre the grid in the available table space.
+  gridOffsetX = Math.max(0, Math.floor((tEl.clientWidth  - GRID_COLS * GRID_W) / 2));
+  gridOffsetY = Math.max(0, Math.floor((tEl.clientHeight - GRID_ROWS * GRID_H) / 2));
+
+  const scale = cardW / 80;
+  const root  = document.documentElement;
+  root.style.setProperty('--card-w',            cardW + 'px');
+  root.style.setProperty('--card-h',            cardH + 'px');
+  root.style.setProperty('--grid-w',            GRID_W + 'px');
+  root.style.setProperty('--grid-h',            GRID_H + 'px');
+  root.style.setProperty('--grid-offset-x',     gridOffsetX + 'px');
+  root.style.setProperty('--grid-offset-y',     gridOffsetY + 'px');
+  root.style.setProperty('--table-rank-size',   (2.2 * scale).toFixed(3) + 'rem');
+  root.style.setProperty('--table-suit-size',   (2.6 * scale).toFixed(3) + 'rem');
+  root.style.setProperty('--table-card-radius', Math.max(3, Math.round(8 * scale)) + 'px');
+
+  // Invisible spacer so the table knows its full scroll extent.
+  let sizer = tEl.querySelector('.grid-sizer');
+  if (!sizer) {
+    sizer = document.createElement('div');
+    sizer.className = 'grid-sizer';
+    Object.assign(sizer.style, { position: 'absolute', pointerEvents: 'none', zIndex: '-1' });
+    tEl.appendChild(sizer);
+  }
+  sizer.style.left   = gridOffsetX + 'px';
+  sizer.style.top    = gridOffsetY + 'px';
+  sizer.style.width  = (GRID_COLS * GRID_W) + 'px';
+  sizer.style.height = (GRID_ROWS * GRID_H) + 'px';
+
+  // Reposition every table card using the new scale + centering offset.
+  for (const [id, { el, data }] of Object.entries(tableCards)) {
+    const { col, row } = gridPos[id] || { col: 0, row: 0 };
+    const newX = gridOffsetX + col * GRID_W + GRID_W / 2;
+    const newY = gridOffsetY + row * GRID_H + GRID_H / 2;
+    data.x = newX; data.y = newY;
+    el.style.left = newX + 'px';
+    el.style.top  = newY + 'px';
+  }
+
+  positionDeckPile();
+  positionDiscardZone();
+  scheduleRenderGroups();
+}
 
 function snapToGrid(x, y) {
-  const col = Math.round((x - GRID_W / 2) / GRID_W);
-  const row = Math.round((y - GRID_H / 2) / GRID_H);
-  return { x: col * GRID_W + GRID_W / 2, y: row * GRID_H + GRID_H / 2 };
+  const col = Math.max(0, Math.min(GRID_COLS - 1,
+    Math.round((x - gridOffsetX - GRID_W / 2) / GRID_W)));
+  const row = Math.max(0, Math.min(GRID_ROWS - 1,
+    Math.round((y - gridOffsetY - GRID_H / 2) / GRID_H)));
+  return {
+    x: gridOffsetX + col * GRID_W + GRID_W / 2,
+    y: gridOffsetY + row * GRID_H + GRID_H / 2,
+  };
 }
 
 function cardGridPos(data) {
   return {
-    col: Math.round((data.x - GRID_W / 2) / GRID_W),
-    row: Math.round((data.y - GRID_H / 2) / GRID_H),
+    col: Math.max(0, Math.min(GRID_COLS - 1,
+      Math.round((data.x - gridOffsetX - GRID_W / 2) / GRID_W))),
+    row: Math.max(0, Math.min(GRID_ROWS - 1,
+      Math.round((data.y - gridOffsetY - GRID_H / 2) / GRID_H))),
   };
 }
 
-// Returns the table-space position (card center) where discarded cards land.
-// Snaps to the rightmost column whose card fully fits inside the table (with 4px margin).
+// Discard zone: top-right cell (col = GRID_COLS-1, row = 0).
 function discardZonePos() {
-  const tEl = tableEl();
-  const tW  = tEl ? tEl.offsetWidth : 1200;
-  // Card right edge = x + 40.  Need x + 40 ≤ tW - 4  →  x ≤ tW - 44
-  // x = col * GRID_W + GRID_W/2  →  col ≤ (tW - 44 - GRID_W/2) / GRID_W
-  const maxCol = Math.floor((tW - 44 - GRID_W / 2) / GRID_W);
-  const x = maxCol * GRID_W + GRID_W / 2;
-  const y = GRID_H / 2;   // row 0 center = 58px from top
-  return { x, y };
+  return {
+    x: gridOffsetX + (GRID_COLS - 1) * GRID_W + GRID_W / 2,
+    y: gridOffsetY + GRID_H / 2,
+  };
 }
 
-// Returns the table-space position (card center) for the deck pile: bottom-left cell.
+// Deck pile: bottom-left cell (col = 0, row = GRID_ROWS-1).
 function deckPilePos() {
-  const tEl = tableEl();
-  const tH  = tEl ? tEl.offsetHeight : 600;
-  // Card bottom edge = y + 56.  Need y + 56 ≤ tH - 4  →  y ≤ tH - 60
-  // y = row * GRID_H + GRID_H/2  →  row ≤ (tH - 60 - GRID_H/2) / GRID_H
-  const maxRow = Math.floor((tH - 60 - GRID_H / 2) / GRID_H);
-  const y = maxRow * GRID_H + GRID_H / 2;
-  const x = GRID_W / 2;   // col 0 center = 42px from left
-  return { x, y };
+  return {
+    x: gridOffsetX + GRID_W / 2,
+    y: gridOffsetY + (GRID_ROWS - 1) * GRID_H + GRID_H / 2,
+  };
 }
 
-// Position visual divs to match their computed grid cells.
-// Called on game-screen show, on state update, and on window resize.
+// Position visual divs to match their grid cells.
+// Called from computeGridScale() and on game-screen show.
 function positionDiscardZone() {
   const { x, y } = discardZonePos();
-  $('#discard-zone').css({ left: (x - 40) + 'px', top: (y - 56) + 'px' });
+  const cw = GRID_W - 4, ch = GRID_H - 4;
+  $('#discard-zone').css({ left: (x - cw / 2) + 'px', top: (y - ch / 2) + 'px' });
 }
 
 function positionDeckPile() {
   const { x, y } = deckPilePos();
-  $('#deck-pile').css({ left: (x - 40) + 'px', top: (y - 56) + 'px' });
+  const cw = GRID_W - 4, ch = GRID_H - 4;
+  $('#deck-pile').css({ left: (x - cw / 2) + 'px', top: (y - ch / 2) + 'px' });
 }
 
-$(window).on('resize', () => { positionDiscardZone(); positionDeckPile(); });
+$(window).on('resize', () => { computeGridScale(); });
 
 // ── Grid group detection ──────────────────────────────────────────────────────
 // Find all horizontal or vertical runs of 3+ grid-aligned cards.
@@ -118,6 +187,37 @@ function scheduleRenderGroups() {
   });
 }
 
+// Auto-sort a detected group by rank order (same ordering as cheat window).
+// Cards are swapped into the grid positions they already occupy — their
+// logical grid slots don't change, only which card sits in which slot.
+function autoSortGroup(run) {
+  // sortSetCards is defined in state.js (loaded before grid.js).
+  // It calls validateAndScore and returns orderedCards only if the set is valid.
+  if (typeof sortSetCards !== 'function') return;
+  const sorted = sortSetCards(run);
+  if (!sorted || sorted.length !== run.length) return;
+
+  // Nothing to do if already in the right order.
+  if (sorted.every((card, i) => card.id === run[i].id)) return;
+
+  // Snapshot target positions before any cards move.
+  const positions = run.map(d => ({ x: d.x, y: d.y }));
+
+  for (let i = 0; i < sorted.length; i++) {
+    const card      = sorted[i];
+    const { x, y } = positions[i];
+    if (card.x === x && card.y === y) continue;
+
+    const entry = tableCards[card.id];
+    if (!entry) continue;
+    entry.data.x = x;
+    entry.data.y = y;
+    entry.el.style.left = x + 'px';
+    entry.el.style.top  = y + 'px';
+    socket.emit('move-card', { cardId: card.id, x, y });
+  }
+}
+
 function renderGroupScoreBtns() {
   groupScoreBtns.forEach(b => $(b).remove());
   groupScoreBtns = [];
@@ -126,10 +226,13 @@ function renderGroupScoreBtns() {
   const tEl = tableEl();
 
   for (const run of groups) {
+    // Auto-sort valid sets into rank order before rendering the score button.
+    autoSortGroup(run);
+
     const xs = run.map(d => d.x);
     const ys = run.map(d => d.y);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-    const ty = Math.min(...ys) - 56 - 8;
+    const ty = Math.min(...ys) - (GRID_H - 4) / 2 - 8;
 
     const $btn = $('<button>').addClass('grid-score-btn').text('SCORE');
     const btn = $btn.get(0);
@@ -259,21 +362,24 @@ function moveFloat(e) {
       Math.abs(e.clientY - drag.mouseStartY) > 4
     )) {
       drag.moved = true;
+      const cw = GRID_W - 4, ch = GRID_H - 4;
       const f = makeCardEl(drag.card, { faceUp: true });
       $(f).addClass('table-card dragging float-drag');
-      f.style.width         = '80px';
-      f.style.height        = '112px';
+      f.style.width         = cw + 'px';
+      f.style.height        = ch + 'px';
       f.style.position      = 'fixed';
       f.style.pointerEvents = 'none';
       f.style.zIndex        = ++zCounter;
       document.body.appendChild(f);
       drag.floatEl = f;
+      drag._cw = cw; drag._ch = ch;
       if (drag.sourceEl) drag.sourceEl.classList.add('hand-ghost');
     }
     if (!drag.moved) return;
 
-    drag.floatEl.style.left = (e.clientX - 40) + 'px';
-    drag.floatEl.style.top  = (e.clientY - 56) + 'px';
+    const _cw = drag._cw || (GRID_W - 4), _ch = drag._ch || (GRID_H - 4);
+    drag.floatEl.style.left = (e.clientX - _cw / 2) + 'px';
+    drag.floatEl.style.top  = (e.clientY - _ch / 2) + 'px';
 
     if (isOverEl(e, handArea())) {
       showHandGap(e.clientX);
@@ -309,9 +415,10 @@ function moveFloat(e) {
     if (Math.abs(e.clientX - drag.mouseStartX) > 4 ||
         Math.abs(e.clientY - drag.mouseStartY) > 4) drag.moved = true;
 
-    const tr = tableEl().getBoundingClientRect();
-    const x  = e.clientX - tr.left - drag.offsetX;
-    const y  = e.clientY - tr.top  - drag.offsetY;
+    const _tEl = tableEl();
+    const tr = _tEl.getBoundingClientRect();
+    const x  = e.clientX - tr.left + _tEl.scrollLeft - drag.offsetX;
+    const y  = e.clientY - tr.top  + _tEl.scrollTop  - drag.offsetY;
     drag.floatEl.style.left = x + 'px';
     drag.floatEl.style.top  = y + 'px';
     if (tableCards[drag.cardId]) {
@@ -327,9 +434,10 @@ $(document).on('mousemove', (e) => {
   moveFloat(e);
 
   if (boxSelect) {
-    const tr = tableEl().getBoundingClientRect();
-    const x  = e.clientX - tr.left;
-    const y  = e.clientY - tr.top;
+    const _bsEl2 = tableEl();
+    const tr = _bsEl2.getBoundingClientRect();
+    const x  = e.clientX - tr.left + _bsEl2.scrollLeft;
+    const y  = e.clientY - tr.top  + _bsEl2.scrollTop;
     const l  = Math.min(boxSelect.startX, x);
     const t  = Math.min(boxSelect.startY, y);
     const w  = Math.abs(x - boxSelect.startX);
@@ -399,8 +507,9 @@ $(document).on('mouseup', (e) => {
       }
       renderHand();
     } else if (inTable) {
-      const tr = tableEl().getBoundingClientRect();
-      const raw = { x: e.clientX - tr.left, y: e.clientY - tr.top };
+      const _tEl = tableEl();
+      const tr = _tEl.getBoundingClientRect();
+      const raw = { x: e.clientX - tr.left + _tEl.scrollLeft, y: e.clientY - tr.top + _tEl.scrollTop };
       const snapped = snapToGrid(raw.x, raw.y);
       socket.emit('play-card', { cardId: drag.cardId, ...snapped, faceUp: true });
     }
@@ -422,9 +531,10 @@ $(document).on('mouseup', (e) => {
     } else if (isOverEl(e, handArea())) {
       socket.emit('pickup-card', { cardId: drag.cardId });
     } else {
-      const tr = tableEl().getBoundingClientRect();
-      const rawX = e.clientX - tr.left - drag.offsetX;
-      const rawY = e.clientY - tr.top  - drag.offsetY;
+      const _tEl2 = tableEl();
+      const tr = _tEl2.getBoundingClientRect();
+      const rawX = e.clientX - tr.left + _tEl2.scrollLeft - drag.offsetX;
+      const rawY = e.clientY - tr.top  + _tEl2.scrollTop  - drag.offsetY;
       const { x, y } = snapToGrid(rawX, rawY);
       if (tableCards[drag.cardId]) {
         tableCards[drag.cardId].el.style.left = x + 'px';
@@ -440,16 +550,22 @@ $(document).on('mouseup', (e) => {
 });
 
 // ── Box select: start on empty table space ────────────────────────────────────
+// Also wire up a ResizeObserver so the grid rescales whenever the table resizes.
 $(document).ready(() => {
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => computeGridScale()).observe(tableEl());
+  }
+
   $(tableEl()).on('mousedown', (e) => {
     if (e.button !== 0) return;
     if (e.target !== tableEl()) return;
     e.preventDefault();
     clearSelection();
 
-    const tr = tableEl().getBoundingClientRect();
-    const startX = e.clientX - tr.left;
-    const startY = e.clientY - tr.top;
+    const _bsEl = tableEl();
+    const tr = _bsEl.getBoundingClientRect();
+    const startX = e.clientX - tr.left + _bsEl.scrollLeft;
+    const startY = e.clientY - tr.top  + _bsEl.scrollTop;
 
     const $sel = $('#select-box');
     $sel.css('display', 'block').css('left', startX + 'px').css('top', startY + 'px')
@@ -474,8 +590,12 @@ function placeCardOnTable(cardData) {
 
   const el = makeCardEl(cardData, { faceUp: cardData.faceUp !== false });
   $(el).addClass('table-card').toggleClass('selected', selectedCardIds.has(cardData.id));
-  el.style.left = (cardData.x || 200) + 'px';
-  el.style.top  = (cardData.y || 200) + 'px';
+  const fallback = snapToGrid(
+    gridOffsetX + Math.floor(GRID_COLS / 2) * GRID_W,
+    gridOffsetY + Math.floor(GRID_ROWS / 2) * GRID_H
+  ); // centre cell
+  el.style.left = (cardData.x || fallback.x) + 'px';
+  el.style.top  = (cardData.y || fallback.y) + 'px';
   el.style.transform = 'translate(-50%,-50%)';
 
   $(el).on('mousedown', (e) => startTableDrag(e, cardData.id));

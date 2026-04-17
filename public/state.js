@@ -1,7 +1,7 @@
 // ── Debug flag ────────────────────────────────────────────────────────────────
 // Controlled server-side: set DEBUG_MODE=true in env vars to enable.
 // Falls back to false in production.
-const DEBUG = !!(window.APP_DEBUG);
+const DEBUG = true;
 
 // ── Socket connection ─────────────────────────────────────────────────────────
 const socket = io();
@@ -84,21 +84,80 @@ function clearScoreLabels() {
   scoreLabels = [];
 }
 
-// ── Scored-sets history panel ─────────────────────────────────────────────────
-function addScoredSet(orderedCards, score) {
-  const $panel = $('#scored-sets-panel');
-  const $row   = $('<div>').addClass('scored-set-row');
-  const $cards = $('<div>').addClass('scored-set-cards');
-  for (const card of orderedCards) {
-    const el = makeCardEl(card, { faceUp: true });
-    $(el).addClass('card-tiny');
-    $cards.append(el);
+// ── History panel (scoreboard + scored-sets log) ──────────────────────────────
+// In-memory list of every set scored this session (all players), insertion order.
+let allScoredSets = [];   // [{ cards, score, playerName }]
+
+// Sort cards within a set by rank (same ordering as cheat window).
+// NOTE: validateAndScore is defined in scoring.js which loads after state.js,
+// but this is only ever called at runtime so it's always available by then.
+function sortSetCards(cards) {
+  if (!cards || !cards.length) return cards;
+  const result = validateAndScore(cards);
+  return (result && result.orderedCards) ? result.orderedCards : cards;
+}
+
+function renderHistoryPanel() {
+  const $rows   = $('#history-rows').empty();
+  const $filter = $('#history-player-filter');
+
+  // Rebuild dropdown options from players who have ever scored
+  const allPlayers = [...new Set(allScoredSets.map(s => s.playerName))];
+  const prevVal    = $filter.val() || 'all';
+  $filter.empty().append($('<option>').val('all').text('All Players'));
+  for (const p of allPlayers) $filter.append($('<option>').val(p).text(p));
+  // Restore selection if still valid, otherwise fall back to "all"
+  $filter.val(allPlayers.includes(prevVal) ? prevVal : 'all');
+
+  // Show filter row only when there are scored sets
+  $('#history-filter-row').toggleClass('hidden', allScoredSets.length === 0);
+
+  // Determine which rows to show
+  const selected = $filter.val();
+  const visible  = selected === 'all'
+    ? allScoredSets
+    : allScoredSets.filter(s => s.playerName === selected);
+
+  // Render rows newest-first
+  let newestShown = true;
+  for (let i = visible.length - 1; i >= 0; i--) {
+    const { cards, score, playerName } = visible[i];
+    const $row   = $('<div>').addClass('history-row');
+    const $name  = $('<div>').addClass('history-player').text(playerName);
+    const $cards = $('<div>').addClass('history-cards');
+    for (const card of cards) {
+      const el = makeCardEl(card, { faceUp: true });
+      $(el).addClass('card-tiny');
+      $cards.append(el);
+    }
+    const $pts = $('<div>').addClass('history-pts').text('+' + score);
+    $row.append($name, $cards, $pts);
+
+    // Slide-in animation only for the very newest visible row
+    if (newestShown) {
+      $row.addClass('history-row-enter');
+      requestAnimationFrame(() => $row.removeClass('history-row-enter'));
+      newestShown = false;
+    }
+    $rows.append($row);
   }
-  const $pts = $('<div>').addClass('scored-set-pts').text(`${score} pts`);
-  $row.append($cards, $pts);
-  $panel.append($row);
-  $row.addClass('scored-set-row-enter');
-  requestAnimationFrame(() => $row.removeClass('scored-set-row-enter'));
+}
+
+// Wire dropdown — event delegation works regardless of DOM ready timing
+$(document).on('change', '#history-player-filter', renderHistoryPanel);
+
+function addScoredSet(cards, score, playerName = 'You') {
+  const orderedCards = sortSetCards(cards);
+  allScoredSets.push({ cards: orderedCards, score, playerName });
+  renderHistoryPanel();
+}
+
+function clearScoredSets() {
+  allScoredSets = [];
+  $('#history-rows').empty();
+  $('#history-filter-row').addClass('hidden');
+  $('#history-player-filter').val('all').empty()
+    .append($('<option>').val('all').text('All Players'));
 }
 
 // ── Scored-card guard ─────────────────────────────────────────────────────────

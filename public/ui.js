@@ -14,7 +14,7 @@ $('#join-btn').on('click', () => {
   $('#game-screen').removeClass('hidden');
   $('#room-label').text(`Room: ${roomId}`);
   buildDeckPile();
-  positionDiscardZone(); positionDeckPile();
+  computeGridScale();   // sizes cards and positions deck/discard for current viewport
   setTimeout(() => playShuffleAnimation(null), 300);
 });
 
@@ -27,7 +27,7 @@ $('#btn-debug').on('click', () => {
   $('#game-screen').removeClass('hidden');
   $('#room-label').text(`Room: ${roomId} [DEBUG]`);
   buildDeckPile();
-  positionDiscardZone(); positionDeckPile();
+  computeGridScale();   // sizes cards and positions deck/discard for current viewport
   setTimeout(() => playShuffleAnimation(null), 300);
   setTimeout(() => socket.emit('deal', { count: 20 }), 700);
 });
@@ -56,13 +56,21 @@ $('#btn-recall').on('click', () => {
 $('#btn-draw').on('click', () => socket.emit('draw', { count: 1 }));
 
 $('#btn-flip-table').on('click', () => {
-  const tr = tableEl().getBoundingClientRect();
-  socket.emit('flip-to-table', { x: tr.width / 2, y: tr.height / 2 });
+  // Snap to centre of visible table area (scroll-space)
+  const tEl = tableEl();
+  const cx = Math.round(tEl.scrollLeft + tEl.clientWidth  / 2);
+  const cy = Math.round(tEl.scrollTop  + tEl.clientHeight / 2);
+  const snapped = snapToGrid(cx, cy);
+  socket.emit('flip-to-table', snapped);
 });
 
 $('#deck-pile').on('click', () => {
   if (shuffling) return;
-  socket.emit('flip-to-table', { x: 160, y: tableEl().getBoundingClientRect().height / 2 });
+  // Place in col 1 (just right of deck pile at col 0), visible row centre
+  const tEl = tableEl();
+  const cy = Math.round(tEl.scrollTop + tEl.clientHeight / 2);
+  const snapped = snapToGrid(GRID_W + GRID_W / 2, cy);
+  socket.emit('flip-to-table', snapped);
 });
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
@@ -92,6 +100,7 @@ socket.on('state', ({ deck, table, players, seats, maxPlayers: mp }) => {
   clearScoreLabels();
   updateDeckCount(deck.length);
   renderOpponentHands(players, seats);
+  updateScoreboard(seats);
   // Reposition discard zone after opp panels may have shown/hidden (changes table width)
   setTimeout(() => { positionDiscardZone(); positionDeckPile(); }, 0);
 
@@ -358,17 +367,55 @@ let deckPanelTab      = 'remaining';
 let deckGroupBy       = 'color';
 let deckSeparateJokers = true;
 
-$('#btn-deck-count').on('click', () => {
-  const $panel = $('#deck-panel');
-  if ($panel.hasClass('hidden')) {
-    renderDeckPanel();
-    $panel.removeClass('hidden');
-  } else {
-    $panel.addClass('hidden');
-  }
-});
+// ── Right sidebar resize ──────────────────────────────────────────────────
+(function() {
+  const STORAGE_KEY = 'sidebarWidth';
+  const $sidebar    = $('#right-sidebar');
+  const $handle     = $('#sidebar-resize-handle');
+  const MIN_W = 160, MAX_W = 520;
 
-$('#deck-panel-close').on('click', () => $('#deck-panel').addClass('hidden'));
+  // Restore saved width
+  const saved = parseInt(localStorage.getItem(STORAGE_KEY));
+  if (saved >= MIN_W && saved <= MAX_W) $sidebar.css('width', saved + 'px');
+
+  let startX, startW;
+
+  $handle.on('mousedown', function(e) {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = $sidebar.outerWidth();
+    $handle.addClass('dragging');
+    $('body').css('user-select', 'none').css('cursor', 'ew-resize');
+
+    $(document).on('mousemove.sidebarResize', function(e) {
+      const delta = startX - e.clientX;          // dragging left = grow
+      const newW  = Math.min(MAX_W, Math.max(MIN_W, startW + delta));
+      $sidebar.css('width', newW + 'px');
+    });
+
+    $(document).on('mouseup.sidebarResize', function() {
+      $handle.removeClass('dragging');
+      $('body').css('user-select', '').css('cursor', '');
+      $(document).off('.sidebarResize');
+      localStorage.setItem(STORAGE_KEY, $sidebar.outerWidth());
+    });
+  });
+})();
+
+// ── Right sidebar tab switching ───────────────────────────────────────────
+function switchSidebarTab(name) {
+  $('.sidebar-tab').removeClass('active');
+  $(`.sidebar-tab[data-pane="${name}"]`).addClass('active');
+  $('.sidebar-pane').addClass('hidden');
+  $(`#pane-${name}`).removeClass('hidden');
+}
+
+$(document).on('click', '.sidebar-tab', function() {
+  const pane = $(this).attr('data-pane');
+  switchSidebarTab(pane);
+  if (pane === 'deck') renderDeckPanel();
+  if (pane === 'cheat' && typeof renderCheatPanel === 'function') renderCheatPanel();
+});
 
 $('.deck-tab').on('click', function() {
   deckPanelTab = $(this).attr('data-tab');
@@ -394,4 +441,130 @@ let _deckSearchTimer = null;
 $('#deck-search').on('input', () => {
   clearTimeout(_deckSearchTimer);
   _deckSearchTimer = setTimeout(renderDeckPanel, 120);
+});
+
+// ── Scoreboard (renders into the history panel's #history-scores section) ─────
+function updateScoreboard(seats) {
+  const $sb = $('#history-scores').empty();
+  if (!seats) return;
+  // Only show seats that have been dealt in (non-zero handCount ever, or have a score)
+  let hasAny = false;
+  for (const [seatStr, seat] of Object.entries(seats)) {
+    if (seat.empty && seat.handCount === 0 && (seat.score || 0) === 0) continue;
+    hasAny = true;
+    const isMe = seat.socketId === myId;
+    $sb.append(
+      $('<div>').addClass('sb-chip').toggleClass('sb-me', isMe).append(
+        $('<span>').addClass('sb-name').text(isMe ? 'You' : seat.name),
+        $('<span>').addClass('sb-score').text(seat.score || 0)
+      )
+    );
+  }
+  $sb.toggleClass('hidden', !hasAny);
+}
+
+// ── AI turn visualization ─────────────────────────────────────────────────────
+// Each AI seat maps to a fixed grid row so cards always land on the snap grid.
+// Seat 1 → row 0 (top), seat 2 → row 3 (middle), seat 3 → row 6 (bottom).
+const AI_GRID_ROWS = [0, 0, 3, 6];
+
+// Convert a table-relative grid cell centre to a viewport (fixed) coordinate.
+function gridCellToScreen(col, row) {
+  const tEl   = tableEl();
+  const tRect = tEl.getBoundingClientRect();
+  return {
+    x: Math.round(tRect.left + gridOffsetX + col * GRID_W + GRID_W / 2 - tEl.scrollLeft),
+    y: Math.round(tRect.top  + gridOffsetY + row * GRID_H + GRID_H / 2 - tEl.scrollTop),
+  };
+}
+
+socket.on('ai-turn', ({ phase, seat, name, cards, score }) => {
+  console.log('[ai-turn]', phase, seat, name, score);
+  const cardW  = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 80;
+  const cardH  = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-h')) || 112;
+  const scale  = cardW / 80;
+  const aiRow  = AI_GRID_ROWS[seat] ?? 0;
+
+  if (phase === 'thinking') {
+    const $badge = $('<div>').addClass('ai-think-badge').attr('data-ai-seat', seat)
+                             .text(`${name} is thinking…`);
+    $('body').append($badge);
+    // Position centred horizontally at the AI's grid row
+    const centre = gridCellToScreen(Math.floor(GRID_COLS / 2), aiRow);
+    const bw = $badge.outerWidth() || 150;
+    $badge.css({
+      top:  (centre.y - 28) + 'px',
+      left: (centre.x - bw / 2) + 'px',
+    });
+    setTimeout(() => $badge.remove(), 1100);
+
+  } else if (phase === 'play' && cards && cards.length) {
+    $(`.ai-think-badge[data-ai-seat="${seat}"]`).remove();
+
+    // Sort cards the same way as the cheat panel (rank order via validateAndScore).
+    const sortedCards = sortSetCards(cards) || cards;
+
+    // Centre the set horizontally in the grid.
+    const startCol = Math.max(0, Math.min(
+      GRID_COLS - sortedCards.length,
+      Math.floor((GRID_COLS - sortedCards.length) / 2)
+    ));
+
+    // Unique class groups all cards so we can remove them together.
+    const groupCls = 'ai-play-grp-' + Date.now();
+
+    for (let i = 0; i < sortedCards.length; i++) {
+      const { x: cx, y: cy } = gridCellToScreen(startCol + i, aiRow);
+      const el = makeCardEl(sortedCards[i], { faceUp: true });
+      el.style.setProperty('--table-rank-size', (2.2 * scale).toFixed(3) + 'rem');
+      el.style.setProperty('--table-suit-size', (2.6 * scale).toFixed(3) + 'rem');
+      Object.assign(el.style, {
+        position:      'fixed',
+        width:         cardW + 'px',
+        height:        cardH + 'px',
+        left:          (cx - cardW / 2) + 'px',
+        top:           (cy - cardH / 2) + 'px',
+        borderRadius:  Math.max(3, Math.round(8 * scale)) + 'px',
+        zIndex:        '600',
+        pointerEvents: 'none',
+        boxShadow:     '2px 6px 18px rgba(0,0,0,0.55)',
+      });
+      el.classList.add('ai-play-card', groupCls);
+      document.body.appendChild(el);
+    }
+
+    // Record in the scored-sets history panel.
+    addScoredSet(sortedCards, score, name);
+
+    // Score toast above the card group.
+    const leftPt  = gridCellToScreen(startCol, aiRow);
+    const rightPt = gridCellToScreen(startCol + sortedCards.length - 1, aiRow);
+    const midX    = Math.round((leftPt.x + rightPt.x) / 2);
+    const topY    = leftPt.y - cardH / 2;
+    const $toast  = $('<div>').addClass('ai-score-toast ai-toast-score')
+                              .text(`${name}  +${score} pts`);
+    $('body').append($toast);
+    $toast.css({
+      top:  (topY - 18) + 'px',
+      left: (midX - ($toast.outerWidth() || 110) / 2) + 'px',
+    });
+    setTimeout(() => $toast.remove(), 2000);
+
+    // Fade cards out after display.
+    setTimeout(() => {
+      $(`.${groupCls}`).addClass('ai-play-out');
+      setTimeout(() => $(`.${groupCls}`).remove(), 420);
+    }, 1600);
+
+  } else if (phase === 'pass') {
+    $(`.ai-think-badge[data-ai-seat="${seat}"]`).remove();
+    const centre  = gridCellToScreen(Math.floor(GRID_COLS / 2), aiRow);
+    const $toast  = $('<div>').addClass('ai-score-toast ai-toast-pass').text(`${name} passes`);
+    $('body').append($toast);
+    $toast.css({
+      top:  centre.y + 'px',
+      left: (centre.x - ($toast.outerWidth() || 110) / 2) + 'px',
+    });
+    setTimeout(() => $toast.remove(), 1500);
+  }
 });

@@ -1,3 +1,16 @@
+/* ── Responsive grid CSS variables (defaults; overridden by computeGridScale()) ── */
+:root {
+  --card-w: 80px;
+  --card-h: 112px;
+  --grid-w: 84px;
+  --grid-h: 116px;
+  --grid-offset-x: 0px;
+  --grid-offset-y: 0px;
+  --table-rank-size: 2.2rem;
+  --table-suit-size: 2.6rem;
+  --table-card-radius: 8px;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -8,6 +21,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  user-select: none;
 }
 
 #title{
@@ -90,17 +104,6 @@ body {
   color: #fff; border-radius: 4px; padding: 0.1rem 0.3rem;
   font-size: 0.82rem; text-align: center;
 }
-#btn-deck-count {
-  font-size: 0.82rem;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: #fff;
-  border-radius: 5px;
-  padding: 0.15rem 0.55rem;
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-}
-#btn-deck-count:hover { background: rgba(255,255,255,0.16); opacity: 1; }
 
 /* ── Table row: [left] [center] [right] ───────────────────────────────────── */
 #table-row {
@@ -213,21 +216,32 @@ body {
 #table {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow: auto;        /* scrollable — reveals all 15 rows on any screen */
   cursor: default;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
 }
+#table::-webkit-scrollbar { width: 4px; height: 4px; }
+#table::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+#table::-webkit-scrollbar-track { background: transparent; }
 
-/* Visible snap grid — 84×116px cells matching the 80×112 card footprint + 4px gutter */
+/* Snap grid — centred in the table, dimensions driven by CSS variables */
 #table::before {
   content: '';
   position: absolute;
-  inset: 0;
+  left: var(--grid-offset-x, 0px);
+  top:  var(--grid-offset-y, 0px);
+  width:  calc(15 * var(--grid-w));   /* exact 15-column width */
+  height: calc(7  * var(--grid-h));   /* exact 7-row height    */
   pointer-events: none;
   background-image:
     linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
-  background-size: 84px 116px;
+  background-size: var(--grid-w) var(--grid-h);
+  /* Darker outline around the grid perimeter */
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 0 3px rgba(255,255,255,0.08);
+  border-radius: 4px;
   z-index: 0;
 }
 
@@ -258,14 +272,15 @@ body {
   position: absolute;
   /* left/top set dynamically by positionDeckPile() in grid.js → bottom-left grid cell */
   left: 2px; top: 2px;   /* fallback until JS runs */
-  width: 80px; height: 112px;
+  width: var(--card-w, 80px);
+  height: var(--card-h, 112px);
   cursor: pointer;
   transition: opacity 0.2s;
 }
 #deck-pile:hover .pile-card { border-color: rgba(255,255,255,0.55); }
 .pile-card {
   position: absolute; inset: 0;
-  border-radius: 8px;
+  border-radius: var(--table-card-radius, 8px);
   background: repeating-linear-gradient(45deg, #1a3a6b, #1a3a6b 4px, #122d56 4px, #122d56 8px);
   border: 2px solid rgba(255,255,255,0.25);
   box-shadow: 1px 2px 6px rgba(0,0,0,0.4);
@@ -301,7 +316,14 @@ body {
   position: absolute;
   cursor: grab;
   box-shadow: 2px 4px 10px rgba(0,0,0,0.35);
+  /* Override the fixed .card size with responsive CSS variables */
+  width:  var(--card-w, 80px)  !important;
+  height: var(--card-h, 112px) !important;
+  border-radius: var(--table-card-radius, 8px) !important;
 }
+/* Scale face text to match card size */
+.table-card .c-face-rank { font-size: var(--table-rank-size, 2.2rem) !important; }
+.table-card .c-face-suit { font-size: var(--table-suit-size, 2.6rem) !important; }
 .table-card:hover { box-shadow: 4px 6px 16px rgba(0,0,0,0.45); }
 .table-card.dragging { cursor: grabbing; box-shadow: 6px 10px 24px rgba(0,0,0,0.5); }
 
@@ -418,9 +440,9 @@ body {
 
 /* ── Chat ────────────────────────────────────────────────────────────────── */
 #chat-panel {
-  position: fixed; 
+  position: fixed;
   bottom: 150px;
-  right: 105px;
+  right: 295px;
   width: 240px;
   background: rgba(0,0,0,0.5); border-radius: 10px;
   display: flex; flex-direction: column; max-height: 180px; overflow: hidden;
@@ -582,52 +604,154 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* ── Scored-sets history panel (top-left of the grid) ───────────────────────── */
-#scored-sets-panel {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 400;
+/* ── Right sidebar ───────────────────────────────────────────────────────── */
+#right-sidebar {
+  position: relative;
+  width: 280px;
+  min-width: 160px;
+  max-width: 520px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  pointer-events: none;   /* doesn't block card interaction */
+  background: rgba(14,14,22,0.97);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  overflow: hidden;
 }
 
-.scored-set-row {
+/* Resize handle on left edge */
+#sidebar-resize-handle {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  cursor: ew-resize;
+  z-index: 10;
+}
+#sidebar-resize-handle:hover,
+#sidebar-resize-handle.dragging {
+  background: rgba(80,200,255,0.35);
+}
+
+/* Tab strip */
+#sidebar-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 9px 4px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sidebar-tab:hover { color: rgba(255,255,255,0.75); }
+.sidebar-tab.active {
+  color: #fff;
+  border-bottom-color: rgba(80,200,255,0.85);
+}
+
+/* Panes */
+.sidebar-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.sidebar-pane.hidden { display: none; }
+
+/* History pane */
+#pane-history {
+  overflow-y: auto;
+  padding: 10px 12px;
+  gap: 6px;
+}
+
+#history-scores {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+#history-filter-row {
+  margin-bottom: 4px;
+}
+
+#history-player-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(0,0,0,0.65)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.55)'/%3E%3C/svg%3E")
+    no-repeat right 7px center;
+  border: 1px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.88);
+  border-radius: 6px;
+  padding: 3px 26px 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s;
+}
+#history-player-filter:hover  { border-color: rgba(255,255,255,0.4); }
+#history-player-filter:focus  { border-color: rgba(255,255,255,0.55); }
+#history-player-filter option { background: #1a1a2e; color: #fff; }
+
+/* Individual set rows */
+.history-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(0, 0, 0, 0.62);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
-  padding: 4px 8px 4px 4px;
+  padding: 4px 6px 4px 4px;
   backdrop-filter: blur(4px);
-  /* Slide-in animation */
   transition: opacity 0.3s, transform 0.3s;
   opacity: 1;
   transform: translateX(0);
 }
-.scored-set-row-enter {
+.history-row-enter {
   opacity: 0;
   transform: translateX(-24px);
 }
 
-.scored-set-cards {
+.history-cards {
   display: flex;
   gap: 3px;
   align-items: center;
 }
 
-/* Tiny card size for the history panel — slightly bigger than cheat panel */
-.scored-set-cards .card-tiny {
+/* Tiny card size for history rows — slightly bigger than cheat panel */
+.history-cards .card-tiny {
   width: 28px;
   height: 40px;
 }
-.scored-set-cards .card-tiny .c-face-rank { font-size: 0.75rem; line-height: 1; }
-.scored-set-cards .card-tiny .c-face-suit { font-size: 0.9rem;  line-height: 1; }
+.history-cards .card-tiny .c-face-rank { font-size: 1.15rem; line-height: 1; }
+.history-cards .card-tiny .c-face-suit { font-size: 1.3rem;  line-height: 1; }
 
-.scored-set-pts {
+/* Player name label on left of each row */
+.history-player {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  min-width: 26px;
+  text-align: right;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+
+.history-pts {
   font-size: 0.78rem;
   font-weight: 800;
   color: #ffd700;
@@ -685,10 +809,10 @@ body {
 #discard-zone {
   position: absolute;
   /* Left/top are set in JS (positionDiscardZone) to snap to rightmost grid col */
-  width: 80px;
-  height: 112px;
+  width:  var(--card-w, 80px);
+  height: var(--card-h, 112px);
   border: 2px dashed rgba(255,110,50,0.35);
-  border-radius: 10px;
+  border-radius: var(--table-card-radius, 10px);
   pointer-events: none;
   z-index: 1;
   display: flex;
@@ -721,26 +845,11 @@ body {
 .hand-score-preview-invalid { color: #ff9090; background: rgba(200,0,0,0.18); border: 1px solid rgba(220,60,60,0.4); }
 .hand-score-preview-neutral { color: rgba(255,255,255,0.5); font-weight: 400; font-size: 0.75rem; }
 
-/* ── Cheat panel ─────────────────────────────────────────────────────────────── */
-#btn-cheat {
-  background: rgba(160,100,255,0.18);
-  border-color: rgba(160,100,255,0.5);
+/* Cheat pane fills the sidebar-pane flex container */
+#pane-cheat #cheat-list {
+  overflow-y: auto;
+  flex: 1;
 }
-#btn-cheat:hover { background: rgba(160,100,255,0.32); }
-
-#cheat-panel {
-  position: fixed;
-  top: 0; right: 0;
-  width: 300px;
-  height: 100vh;
-  background: rgba(14, 14, 22, 0.97);
-  border-left: 1px solid rgba(255,255,255,0.1);
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
-}
-#cheat-panel.hidden { display: none; }
 
 #cheat-header {
   display: flex;
@@ -757,17 +866,6 @@ body {
   letter-spacing: 0.07em;
   opacity: 0.8;
 }
-#cheat-close {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-#cheat-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
 #cheat-list {
   overflow-y: auto;
   flex: 1;
@@ -821,25 +919,10 @@ body {
   opacity: 0.45;
   font-size: 0.85rem;
 }
-/* ── Deck browser panel ───────────────────────────────────────────────────── */
-#deck-panel {
-  position: fixed;
-  top: 0; right: 0;
-  width: 340px;
-  height: 100vh;
-  background: rgba(14, 14, 22, 0.97);
-  border-left: 1px solid rgba(255,255,255,0.1);
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
-}
-#deck-panel.hidden { display: none; }
-
+/* ── Deck browser pane ───────────────────────────────────────────────────── */
 #deck-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 14px 0;
   flex-shrink: 0;
   border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -869,21 +952,10 @@ body {
   border-bottom-color: rgba(80,200,255,0.8);
 }
 
-#deck-panel-close {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-#deck-panel-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
 #deck-panel-content {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   padding: 10px 12px;
 }
 
@@ -1016,3 +1088,86 @@ body {
 .card-tiny.deck-card-clickable:active {
   transform: translateY(-1px) scale(1.03);
 }
+
+/* ── Score chips (used inside #history-scores) ───────────────────────────── */
+.sb-chip {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 0.15rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sb-chip.sb-me {
+  background: rgba(255,220,0,0.18);
+  border-color: rgba(255,220,0,0.45);
+  color: #ffdd00;
+}
+.sb-name { opacity: 0.85; }
+.sb-score {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.sb-chip.sb-me .sb-score { color: #ffdd00; }
+
+/* ── AI thinking indicator ───────────────────────────────────────────────── */
+.ai-think-badge {
+  position: fixed;
+  background: rgba(20,20,20,0.82);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  z-index: 800;
+  pointer-events: none;
+  animation: ai-think-pulse 0.55s ease-in-out infinite alternate;
+}
+@keyframes ai-think-pulse {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+
+/* ── AI score / pass toast ───────────────────────────────────────────────── */
+.ai-score-toast {
+  position: fixed;
+  border-radius: 10px;
+  padding: 7px 20px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  z-index: 900;
+  pointer-events: none;
+  animation: ai-toast-rise 1.9s ease-out forwards;
+}
+.ai-score-toast.ai-toast-score { background: rgba(42,157,143,0.92); }
+.ai-score-toast.ai-toast-pass  { background: rgba(80,80,80,0.85); }
+@keyframes ai-toast-rise {
+  0%   { opacity: 0;   transform: translateY(0px); }
+  12%  { opacity: 1;   transform: translateY(0px); }
+  75%  { opacity: 1;   transform: translateY(-44px); }
+  100% { opacity: 0;   transform: translateY(-64px); }
+}
+
+/* ── AI played cards (grid-snapped, individually positioned) ─────────────── */
+.ai-play-card {
+  animation: ai-play-in 0.25s ease-out;
+}
+@keyframes ai-play-in {
+  from { opacity: 0; transform: scale(0.78) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+.ai-play-card.ai-play-out {
+  animation: ai-play-out 0.38s ease-in forwards;
+}
+@keyframes ai-play-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.9); }
+} 

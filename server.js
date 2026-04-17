@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { validateAndScore } = require('./public/scoring-core');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,8 +20,9 @@ app.get('/config.js', (req, res) => {
 });
 
 // ── Card data ────────────────────────────────────────────────────────────────
-const SUITS  = ['spade', 'heart', 'club', 'diamond'];
-const COLORS = ['blue', 'red', 'green', 'purple'];
+const SUITS     = ['spade', 'heart', 'club', 'diamond'];
+const COLORS    = ['blue', 'red', 'green', 'purple'];
+const AI_NAMES  = ['', 'Broc', 'Oli', 'Cauli'];  // index = seat (seat 0 = human)
 
 // Regular: 13 ranks × 4 suits × 4 colors = 208 cards
 // Jokers:  all 2³-1 = 7 wild-trait combinations, one card per unique fixed-trait combo
@@ -96,6 +98,8 @@ function getOrCreateRoom(roomId, maxPlayers) {
       players: {},
       seatOrder: [],      // [socketId] in join order
       pendingHands: {},   // { [seatIndex]: [card, ...] } for seats not yet occupied
+      aiScores: {},       // { [seatIndex]: cumulativeScore }
+      aiTurnRunning: false,
     };
   }
   return rooms[roomId];
@@ -107,10 +111,22 @@ function roomState(room) {
   for (let seat = 0; seat < room.maxPlayers; seat++) {
     const sid = room.seatOrder[seat];
     if (sid && room.players[sid]) {
-      seats[seat] = { name: room.players[sid].name, handCount: room.players[sid].hand.length, socketId: sid, empty: false };
+      seats[seat] = {
+        name: room.players[sid].name,
+        handCount: room.players[sid].hand.length,
+        socketId: sid,
+        empty: false,
+        score: room.players[sid].score || 0,
+      };
     } else {
       const pending = (room.pendingHands[seat] || []).length;
-      seats[seat] = { name: `Seat ${seat + 1}`, handCount: pending, socketId: null, empty: true };
+      seats[seat] = {
+        name: AI_NAMES[seat] || `CPU ${seat}`,
+        handCount: pending,
+        socketId: null,
+        empty: true,
+        score: room.aiScores[seat] || 0,
+      };
     }
   }
   return {
@@ -126,6 +142,117 @@ function roomState(room) {
     ),
     seats, // full picture of all seats including empty ones
   };
+}
+
+// ── AI helpers ───────────────────────────────────────────────────────────────
+// validateAndScore is shared with the client via scoring-core.js (required above).
+
+// Brute-force all combinations of size k from arr.
+function getCombinations(arr, k) {
+  const result = [], combo = new Array(k);
+  function go(start, depth) {
+    if (depth === k) { result.push(combo.slice()); return; }
+    for (let i = start; i <= arr.length - (k - depth); i++) {
+      combo[depth] = arr[i]; go(i + 1, depth + 1);
+    }
+  }
+  go(0, 0);
+  return result;
+}
+
+// Return the highest-scoring valid set from hand (3–13 cards).
+function findBestPlay(hand) {
+  let best = null;
+  const max = Math.min(13, hand.length);
+  for (let k = 3; k <= max; k++) {
+    for (const combo of getCombinations(hand, k)) {
+      const { valid, score } = validateAndScore(combo);
+      if (valid && score != null && (!best || score > best.score)) best = { cards: combo, score };
+    }
+  }
+  return best;
+}
+
+// Trigger AI turns for all empty seats, staggered so humans can follow along.
+const THINK_MS   = 800;   // "thinking" indicator duration
+const STAGGER_MS = 2400;  // gap between consecutive AI turns (think + display)
+
+function triggerAiTurns(roomId) {
+  const room = rooms[roomId];
+  console.log('[AI] triggerAiTurns called, roomId:', roomId, 'aiTurnRunning:', room?.aiTurnRunning);
+  if (!room || room.aiTurnRunning) return;
+
+  // Find seats that are AI-controlled (no connected socket, has cards).
+  const aiSeats = [];
+  for (let seat = 1; seat < room.maxPlayers; seat++) {
+    const hasSid    = !!room.seatOrder[seat];
+    const cardCount = (room.pendingHands[seat] || []).length;
+    console.log(`[AI]  seat ${seat}: hasSid=${hasSid}, pendingCards=${cardCount}`);
+    if (!hasSid && cardCount > 0) aiSeats.push(seat);
+  }
+  console.log('[AI] aiSeats:', aiSeats);
+  if (!aiSeats.length) return;
+
+  room.aiTurnRunning = true;
+  const totalMs = 600 + (aiSeats.length - 1) * STAGGER_MS + THINK_MS + 1600;
+  setTimeout(() => { if (rooms[roomId]) rooms[roomId].aiTurnRunning = false; }, totalMs);
+
+  let delay = 600;
+  for (const seat of aiSeats) {
+    const name = AI_NAMES[seat] || `CPU ${seat}`;
+
+    // Thinking phase
+    const thinkAt = delay;
+    setTimeout(() => {
+      if (!rooms[roomId]) return;
+      io.to(roomId).emit('ai-turn', { phase: 'thinking', seat, name });
+    }, thinkAt);
+
+    // Play phase
+    const playAt = delay + THINK_MS;
+    setTimeout(() => {
+      if (!rooms[roomId]) return;
+      const r    = rooms[roomId];
+      const hand = r.pendingHands[seat] || [];
+
+      if (!hand.length) {
+        io.to(roomId).emit('ai-turn', { phase: 'pass', seat, name });
+        return;
+      }
+
+      const best = findBestPlay(hand);
+      if (!best) {
+        io.to(roomId).emit('ai-turn', { phase: 'pass', seat, name });
+        return;
+      }
+
+      // Remove scored cards from AI hand.
+      const scoredIds = new Set(best.cards.map(c => c.id));
+      r.pendingHands[seat] = hand.filter(c => !scoredIds.has(c.id));
+
+      // Tally cumulative score.
+      r.aiScores[seat] = (r.aiScores[seat] || 0) + best.score;
+
+      // Auto-draw replacements from deck.
+      const draw = Math.min(best.cards.length, r.deck.length);
+      for (let i = 0; i < draw; i++) r.pendingHands[seat].push(r.deck.shift());
+
+      console.log(`[AI] seat ${seat} playing ${best.cards.length} cards for ${best.score} pts`);
+      io.to(roomId).emit('ai-turn', {
+        phase:      'play',
+        seat,
+        name,
+        cards:      best.cards,
+        score:      best.score,
+        totalScore: r.aiScores[seat],
+        handCount:  r.pendingHands[seat].length,
+      });
+      io.to(roomId).emit('state', roomState(r));
+      io.to(roomId).emit('chat', { system: true, text: `${name} scored ${best.score} pts!` });
+    }, playAt);
+
+    delay += STAGGER_MS;
+  }
 }
 
 // ── Socket handlers ──────────────────────────────────────────────────────────
@@ -315,6 +442,9 @@ io.on('connection', (socket) => {
       system: true,
       text: `${player.name} scored ${score} pts! (deck: ${room.deck.length} remaining)`,
     });
+
+    // Kick off staggered AI turns after the human scores.
+    triggerAiTurns(currentRoom);
   });
 
   socket.on('chat', ({ text }) => {

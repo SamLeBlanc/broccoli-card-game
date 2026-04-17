@@ -55,7 +55,6 @@ function renderHand() {
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function updateDeckCount(count) {
   deckCount = count;
-  $('#btn-deck-count').text(`Deck: ${count}`);
   $('#deck-remaining-count').text(count);
   $('#deck-pile').css('opacity', count > 0 ? '1' : '0.3');
 }
