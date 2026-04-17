@@ -11,11 +11,10 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Client config injection ───────────────────────────────────────────────────
-// Debug mode is on automatically when not in production (local dev).
-// In production (Railway sets NODE_ENV=production), it's off unless you
-// explicitly set DEBUG_MODE=true in Railway's environment variables.
+// Debug mode is ONLY on when DEBUG_MODE=true is explicitly set.
+// Never falls back on NODE_ENV so production deploys are always safe.
 app.get('/config.js', (req, res) => {
-  const debug = process.env.DEBUG_MODE === 'true' || process.env.NODE_ENV !== 'production';
+  const debug = process.env.DEBUG_MODE === 'true';
   res.type('application/javascript')
      .send(`window.APP_DEBUG = ${debug};`);
 });
